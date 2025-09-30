@@ -7,25 +7,49 @@ Complete Examples
 Timer Application
 ~~~~~~~~~~~~~~~~~
 
-A menu bar app that shows elapsed time::
+A menu bar app that shows elapsed time with a rich layout::
 
-    import rumps
+    import stackit
     import time
 
-    class TimerApp(rumps.App):
+    class TimerApp:
         def __init__(self):
-            super(TimerApp, self).__init__("Timer")
+            self.app = stackit.StackApp("Timer", "⏱")
             self.start_time = time.time()
-            self.timer = rumps.Timer(self.update_title, 1)
-            self.timer.start()
+            self.setup_ui()
 
-        def update_title(self, _):
+            # Update every second
+            self.timer = stackit.every(1.0, self.update_display)
+
+        def setup_ui(self):
+            # Create timer display item
+            self.item = stackit.StackMenuItem("Timer")
+            self.update_display(None)
+            self.app.add_item("timer", self.item)
+
+            # Add reset button
+            reset_item = stackit.StackMenuItem("Reset")
+            layout = reset_item.hstack()
+            layout.append(stackit.button("🔄 Reset Timer", target=self, action="reset_timer:"))
+            reset_item.set_root_stack(layout)
+            self.app.add_item("reset", reset_item)
+
+        def update_display(self, timer):
             elapsed = int(time.time() - self.start_time)
-            self.title = f"⏱ {elapsed}s"
+            minutes = elapsed // 60
+            seconds = elapsed % 60
 
-        @rumps.clicked("Reset")
-        def reset(self, _):
+            layout = self.item.hstack(spacing=8)
+            layout.append(stackit.label("Time:", bold=True))
+            layout.append(stackit.spacer())
+            layout.append(stackit.label(f"{minutes:02d}:{seconds:02d}", font_size=14))
+            self.item.set_root_stack(layout)
+
+        def reset_timer_(self, sender):
             self.start_time = time.time()
+
+        def run(self):
+            self.app.run()
 
     if __name__ == "__main__":
         TimerApp().run()
@@ -33,107 +57,287 @@ A menu bar app that shows elapsed time::
 Network Status Monitor
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Monitor network connectivity::
+Monitor network connectivity with visual indicators::
 
-    import rumps
+    import stackit
     import subprocess
 
-    class NetworkMonitor(rumps.App):
+    class NetworkMonitor:
         def __init__(self):
-            super().__init__("Net")
-            self.icon = rumps.Icon(sf_symbol="wifi")
-            self.menu = ["Check Status"]
-            self.timer = rumps.Timer(self.check_network, 30)
-            self.timer.start()
+            self.app = stackit.StackApp("Net")
+            self.connected = True
+            self.setup_ui()
 
-        def check_network(self, _):
+            # Check every 30 seconds
+            self.timer = stackit.every(30.0, self.check_network)
+            self.check_network(None)
+
+        def setup_ui(self):
+            # Status display
+            self.status_item = stackit.StackMenuItem("Status")
+            self.app.add_item("status", self.status_item)
+
+            self.app.add_separator()
+
+            # Manual check button
+            check_item = stackit.StackMenuItem("Check")
+            layout = check_item.hstack()
+            layout.append(stackit.button("🔄 Check Now", target=self, action="manual_check:"))
+            check_item.set_root_stack(layout)
+            self.app.add_item("check", check_item)
+
+        def check_network(self, timer):
             try:
                 subprocess.check_call(
                     ["ping", "-c", "1", "8.8.8.8"],
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
+                    timeout=5
                 )
-                self.icon = rumps.Icon(sf_symbol="wifi")
-            except subprocess.CalledProcessError:
-                self.icon = rumps.Icon(sf_symbol="wifi.slash")
+                self.connected = True
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                self.connected = False
 
-        @rumps.clicked("Check Status")
-        def manual_check(self, _):
+            self.update_display()
+
+        def update_display(self):
+            layout = self.status_item.hstack(spacing=8)
+
+            if self.connected:
+                icon = stackit.image(
+                    stackit.SFSymbol.create("wifi", size=16, color="green"),
+                    width=16, height=16
+                )
+                status_text = "Connected"
+                color = "green"
+            else:
+                icon = stackit.image(
+                    stackit.SFSymbol.create("wifi.slash", size=16, color="red"),
+                    width=16, height=16
+                )
+                status_text = "Disconnected"
+                color = "red"
+
+            layout.append(icon)
+            layout.append(stackit.label(status_text, color=color))
+            self.status_item.set_root_stack(layout)
+
+            # Update app icon
+            app_icon = stackit.SFSymbol.create(
+                "wifi" if self.connected else "wifi.slash",
+                size=16
+            )
+            self.app.set_icon(app_icon)
+
+        def manual_check_(self, sender):
             self.check_network(None)
-            rumps.notification(
+            stackit.notification(
                 "Network Status",
                 "Check Complete",
-                "Network status updated"
+                f"Status: {'Connected' if self.connected else 'Disconnected'}"
             )
+
+        def run(self):
+            self.app.run()
 
     if __name__ == "__main__":
         NetworkMonitor().run()
 
-Todo List
-~~~~~~~~~
+Todo List Manager
+~~~~~~~~~~~~~~~~~
 
-A simple todo list in the menu bar::
+A feature-rich todo list with checkboxes::
 
-    import rumps
+    import stackit
 
-    class TodoApp(rumps.App):
+    class TodoApp:
         def __init__(self):
-            super().__init__("📝")
+            self.app = stackit.StackApp("📝 Todos")
             self.todos = []
-            self.menu = ["Add Todo", None]  # None creates a separator
+            self.setup_ui()
 
-        @rumps.clicked("Add Todo")
-        def add_todo(self, _):
-            response = rumps.Window(
-                "Add a todo item",
-                "Enter your todo:",
-                dimensions=(200, 20)
-            ).run()
+        def setup_ui(self):
+            # Add todo button
+            add_item = stackit.StackMenuItem("Add")
+            layout = add_item.hstack()
+            layout.append(stackit.button("➕ Add Todo", target=self, action="add_todo:"))
+            add_item.set_root_stack(layout)
+            self.app.add_item("add", add_item)
 
-            if response.clicked:
-                todo = response.text
-                if todo:
-                    self.todos.append(todo)
-                    item = rumps.MenuItem(
-                        todo,
-                        callback=self.toggle_todo
-                    )
-                    self.menu.add(item)
+            self.app.add_separator()
 
-        def toggle_todo(self, sender):
-            sender.state = not sender.state
-            if sender.state:
-                sender.title = f"✓ {sender.title}"
-            else:
-                sender.title = sender.title.replace("✓ ", "")
+        def add_todo_(self, sender):
+            # Use alert as input dialog
+            result = stackit.alert(
+                "New Todo",
+                "Enter your todo item:",
+                ok="Add",
+                cancel="Cancel"
+            )
+
+            if result == 1:  # OK clicked
+                # In real app, you'd get text from a proper input dialog
+                todo_text = f"Todo Item {len(self.todos) + 1}"
+                self.add_todo_item(todo_text)
+
+        def add_todo_item(self, text):
+            todo_id = f"todo_{len(self.todos)}"
+            self.todos.append({"id": todo_id, "text": text, "done": False})
+
+            # Create todo item with checkbox
+            item = stackit.StackMenuItem(todo_id)
+            layout = item.hstack(spacing=8)
+
+            checkbox = stackit.checkbox("", state=False)
+            layout.append(checkbox)
+            layout.append(stackit.label(text))
+
+            item.set_root_stack(layout)
+            self.app.add_item(todo_id, item)
+
+        def run(self):
+            self.app.run()
 
     if __name__ == "__main__":
         TodoApp().run()
 
-System Information
-~~~~~~~~~~~~~~~~~~
+System Monitor Dashboard
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-Display system information in the menu bar::
+Display system information with progress bars::
 
-    import rumps
+    import stackit
     import psutil
+    import platform
 
-    class SystemInfo(rumps.App):
+    class SystemMonitor:
         def __init__(self):
-            super().__init__("💻")
-            self.timer = rumps.Timer(self.update_info, 5)
-            self.timer.start()
+            self.app = stackit.StackApp("💻 System")
+            self.setup_ui()
+
+            # Update every 3 seconds
+            self.timer = stackit.every(3.0, self.update_info)
             self.update_info(None)
 
-        def update_info(self, _):
-            cpu = psutil.cpu_percent(interval=1)
-            memory = psutil.virtual_memory().percent
+        def setup_ui(self):
+            # System info header
+            info_item = stackit.StackMenuItem("Info")
+            layout = info_item.vstack(spacing=4)
+            layout.append(stackit.label(f"macOS {platform.mac_ver()[0]}", font_size=11, color="gray"))
+            info_item.set_root_stack(layout)
+            self.app.add_item("info", info_item)
 
-            self.menu.clear()
-            self.menu.add(rumps.MenuItem(f"CPU: {cpu}%", callback=None))
-            self.menu.add(rumps.MenuItem(f"Memory: {memory}%", callback=None))
-            self.menu.add(None)  # Separator
-            self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
+            self.app.add_separator()
+
+            # CPU display
+            self.cpu_item = stackit.StackMenuItem("CPU")
+            self.app.add_item("cpu", self.cpu_item)
+
+            # Memory display
+            self.mem_item = stackit.StackMenuItem("Memory")
+            self.app.add_item("memory", self.mem_item)
+
+            # Disk display
+            self.disk_item = stackit.StackMenuItem("Disk")
+            self.app.add_item("disk", self.disk_item)
+
+        def update_info(self, timer):
+            # Update CPU
+            cpu_percent = psutil.cpu_percent(interval=1) / 100.0
+            layout = self.cpu_item.vstack(spacing=4)
+            layout.append(stackit.label("CPU Usage", font_size=11, bold=True))
+            layout.append(stackit.progress_bar(width=200, value=cpu_percent))
+            layout.append(stackit.label(f"{cpu_percent*100:.1f}%", font_size=10, color="gray"))
+            self.cpu_item.set_root_stack(layout)
+
+            # Update Memory
+            mem = psutil.virtual_memory()
+            mem_percent = mem.percent / 100.0
+            layout = self.mem_item.vstack(spacing=4)
+            layout.append(stackit.label("Memory Usage", font_size=11, bold=True))
+            layout.append(stackit.progress_bar(width=200, value=mem_percent))
+            layout.append(stackit.label(
+                f"{mem.used / (1024**3):.1f} GB / {mem.total / (1024**3):.1f} GB",
+                font_size=10,
+                color="gray"
+            ))
+            self.mem_item.set_root_stack(layout)
+
+            # Update Disk
+            disk = psutil.disk_usage('/')
+            disk_percent = disk.percent / 100.0
+            layout = self.disk_item.vstack(spacing=4)
+            layout.append(stackit.label("Disk Usage", font_size=11, bold=True))
+            layout.append(stackit.progress_bar(width=200, value=disk_percent))
+            layout.append(stackit.label(
+                f"{disk.used / (1024**3):.1f} GB / {disk.total / (1024**3):.1f} GB",
+                font_size=10,
+                color="gray"
+            ))
+            self.disk_item.set_root_stack(layout)
+
+        def run(self):
+            self.app.run()
 
     if __name__ == "__main__":
-        SystemInfo().run()
+        SystemMonitor().run()
+
+Music Player Controller
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A compact music player controller with buttons and sliders::
+
+    import stackit
+
+    class MusicController:
+        def __init__(self):
+            self.app = stackit.StackApp("🎵")
+            self.playing = False
+            self.volume = 50
+            self.setup_ui()
+
+        def setup_ui(self):
+            # Playback controls
+            controls_item = stackit.StackMenuItem("Controls")
+            layout = controls_item.hstack(spacing=8)
+
+            # Previous button
+            prev_btn = stackit.button("⏮", target=self, action="previous:")
+            layout.append(prev_btn)
+
+            # Play/Pause button
+            self.play_btn = stackit.button("▶️", target=self, action="toggle_play:")
+            layout.append(self.play_btn)
+
+            # Next button
+            next_btn = stackit.button("⏭", target=self, action="next:")
+            layout.append(next_btn)
+
+            controls_item.set_root_stack(layout)
+            self.app.add_item("controls", controls_item)
+
+            # Volume control
+            volume_item = stackit.StackMenuItem("Volume")
+            layout = volume_item.vstack(spacing=4)
+            layout.append(stackit.label("Volume", font_size=11, bold=True))
+            vol_slider = stackit.slider(width=150, min_value=0, max_value=100, value=self.volume)
+            layout.append(vol_slider)
+            volume_item.set_root_stack(layout)
+            self.app.add_item("volume", volume_item)
+
+        def toggle_play_(self, sender):
+            self.playing = not self.playing
+            # Update button would require accessing the control
+            stackit.notification("Music", "", "▶️ Playing" if self.playing else "⏸ Paused")
+
+        def previous_(self, sender):
+            stackit.notification("Music", "", "⏮ Previous Track")
+
+        def next_(self, sender):
+            stackit.notification("Music", "", "⏭ Next Track")
+
+        def run(self):
+            self.app.run()
+
+    if __name__ == "__main__":
+        MusicController().run()
