@@ -50,14 +50,17 @@ class SFSymbol:
         "multicolor": 4     # Multicolor
     }
 
-    def __init__(self, name, rendering="automatic", color=None, accessibility_description=None,
-                 point_size=None, weight=None, scale=None, text_style=None):
+    def __init__(self, name, rendering="automatic", color="#ffffff", palette_colors=None,
+                 accessibility_description=None, point_size=None, weight=None, scale=None, text_style=None):
         """Create an SF Symbol with customization options.
 
         :param name: The name of the SF Symbol (e.g., "turtle", "heart.fill", "gear")
         :param rendering: Symbol rendering mode - "automatic", "monochrome", "hierarchical", "palette", or "multicolor"
         :param color: Color for the symbol as hex string (e.g., "#ffffff") or RGB tuple (r, g, b) or (r, g, b, a)
-                     Can also be a list of colors for palette mode
+                     For hierarchical mode: single color used as base with derived opacities
+                     For monochrome mode: single color for the entire symbol
+        :param palette_colors: List of colors for palette mode - each color applies to a different layer
+                              Format: ["#FF0000", "#00FF00", "#0000FF"] or [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
         :param accessibility_description: Optional accessibility description for the symbol
         :param point_size: Point size for the symbol (CGFloat)
         :param weight: Font weight - "ultraLight", "thin", "light", "regular", "medium", "semibold", "bold", "heavy", "black"
@@ -67,6 +70,7 @@ class SFSymbol:
         self.name = name
         self.rendering = rendering
         self.color = color
+        self.palette_colors = palette_colors
         self.point_size = point_size
         self.weight = weight
         self.scale = scale
@@ -112,7 +116,8 @@ class SFSymbol:
 
     def _build_configuration(self):
         """Build the complete symbol configuration by combining all requested traits."""
-        if not hasattr(NSImage, 'SymbolConfiguration'):
+        # NSImageSymbolConfiguration is a separate class, not a subclass of NSImage
+        if not hasattr(AppKit, 'NSImageSymbolConfiguration'):
             return None
 
         try:
@@ -123,21 +128,24 @@ class SFSymbol:
             if base_config:
                 config = base_config
 
-            # 2. Apply rendering mode configuration
-            rendering_config = self._create_rendering_config()
-            if rendering_config:
-                if config:
-                    config = config.configurationByApplyingConfiguration_(rendering_config)
-                else:
-                    config = rendering_config
-
-            # 3. Apply color configuration
+            # 2. Apply color configuration (hierarchical/palette automatically set rendering mode)
             color_config = self._create_color_config()
             if color_config:
                 if config:
                     config = config.configurationByApplyingConfiguration_(color_config)
                 else:
                     config = color_config
+
+            # 3. Apply rendering mode configuration (only if no color config was applied)
+            # Note: hierarchical and palette colors already set the rendering mode,
+            # so we only apply rendering_config for multicolor or monochrome without explicit colors
+            if not color_config:
+                rendering_config = self._create_rendering_config()
+                if rendering_config:
+                    if config:
+                        config = config.configurationByApplyingConfiguration_(rendering_config)
+                    else:
+                        config = rendering_config
 
             return config
 
@@ -224,28 +232,26 @@ class SFSymbol:
 
     def _create_color_config(self):
         """Create color configuration using the correct factory methods."""
-        if not self.color:
-            return None
-
         try:
-            # Multiple colors for palette mode (macOS 12+)
-            if isinstance(self.color, (list, tuple)) and len(self.color) > 1 and not isinstance(self.color[0], (int, float)):
+            # Palette mode with multiple colors (macOS 12+)
+            if self.palette_colors and hasattr(NSImageSymbolConfiguration, 'configurationWithPaletteColors_'):
                 ns_colors = []
-                for color in self.color:
+                for color in self.palette_colors:
                     ns_color = self._parse_color(color)
                     if ns_color:
                         ns_colors.append(ns_color)
-                if ns_colors and hasattr(NSImageSymbolConfiguration, 'configurationWithPaletteColors_'):
+                if ns_colors:
                     return NSImageSymbolConfiguration.configurationWithPaletteColors_(ns_colors)
 
-            # Single color
-            else:
+            # Single color handling based on rendering mode
+            elif self.color:
                 ns_color = self._parse_color(self.color)
                 if ns_color:
-                    # Hierarchical color (macOS 12+)
+                    # Hierarchical: base color with derived opacities (macOS 12+)
                     if self.rendering == "hierarchical" and hasattr(NSImageSymbolConfiguration, 'configurationWithHierarchicalColor_'):
                         return NSImageSymbolConfiguration.configurationWithHierarchicalColor_(ns_color)
-                    # Single color as palette (macOS 12+)
+
+                    # Monochrome/Palette: single color (macOS 12+)
                     elif hasattr(NSImageSymbolConfiguration, 'configurationWithPaletteColors_'):
                         return NSImageSymbolConfiguration.configurationWithPaletteColors_([ns_color])
 
@@ -290,7 +296,8 @@ class SFSymbol:
         return self._nsimage
 
     def __repr__(self):
-        return f'<SFSymbol: name="{self.name}", rendering="{self.rendering}", color="{self.color}">'
+        color_info = f'palette_colors={self.palette_colors}' if self.palette_colors else f'color="{self.color}"'
+        return f'<SFSymbol: name="{self.name}", rendering="{self.rendering}", {color_info}>'
 
     @staticmethod
     def named(symbol_name, accessibility_description=None):

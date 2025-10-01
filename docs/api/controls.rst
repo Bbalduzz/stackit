@@ -255,29 +255,120 @@ Create a horizontal separator line.
 
 * ``width`` (int) - Separator width in pixels (default: 200)
 
+Layout Containers
+-----------------
+
+block()
+~~~~~~~
+
+Create a bordered and rounded container around content (similar to SwiftUI's menuBlock modifier).
+
+.. code-block:: python
+
+   # Wrap content in a block
+   content = stackit.vstack([
+       stackit.label("Network", bold=True),
+       stackit.label("Status: Active")
+   ])
+
+   block = stackit.block(content, radius=8.0, padding=12.0)
+
+   # Custom colors
+   custom_block = stackit.block(
+       content,
+       radius=10.0,
+       padding=16.0,
+       border_color="#FF990080",
+       background_color="#FF990020"
+   )
+
+**Parameters:**
+
+* ``content_view`` (NSView) - The view to wrap (StackView or any NSView)
+* ``radius`` (float) - Corner radius in points (default: 8.0)
+* ``padding`` (float or tuple) - Padding around content, single value or (top, leading, bottom, trailing) (default: 12.0)
+* ``border_color`` (str or NSColor) - Border color as hex string or NSColor (default: subtle gray)
+* ``background_color`` (str or NSColor) - Background color as hex string or NSColor (default: subtle white)
+
+**Note:** Creates a subtle shadow for depth and uses transparency for a native macOS look.
+
+Chart Controls
+--------------
+
+line_chart()
+~~~~~~~~~~~~
+
+Create a line chart with smooth spline interpolation using SpriteKit.
+
+.. code-block:: python
+
+   # Simple line chart with default styling
+   chart = stackit.line_chart(
+       points=[10, 15, 8, 20, 18, 25, 22, 26, 24, 26],
+       dimensions=(60, 20),
+       max_value=100.0
+   )
+
+   # Customized line chart
+   chart = stackit.line_chart(
+       points=[5, 10, 8, 15, 20],
+       dimensions=(100, 40),
+       max_value=25.0,
+       min_value=0.0,
+       color="#FF0000",
+       line_width=1.0,
+       fill=True
+   )
+
+**Parameters:**
+
+* ``points`` (list) - List of data points to plot
+* ``dimensions`` (tuple) - Chart dimensions as (width, height) in points (default: (60, 20))
+* ``max_value`` (float) - Maximum value for y-axis scaling (default: 100.0)
+* ``min_value`` (float) - Minimum value for y-axis scaling (default: 0.0)
+* ``color`` (str or NSColor) - Line color (default: system label color)
+* ``line_width`` (float) - Width of the line stroke (default: 0.5)
+* ``fill`` (bool) - Whether to fill area under the line (default: True)
+
+**Note:** Uses SpriteKit's SKKeyframeSequence for smooth spline interpolation. Falls back to linear interpolation if SpriteKit is unavailable.
+
 Image Controls
 --------------
 
 image()
 ~~~~~~~
 
-Create an image view.
+Create an image view with optional rounded corners.
 
 .. code-block:: python
 
-   # From file path
-   img = stackit.image("/path/to/image.png", width=24, height=24)
-
    # From SF Symbol
-   symbol = stackit.SFSymbol.create("star.fill")
+   symbol = stackit.SFSymbol("star.fill", color="#FFD700")
    img = stackit.image(symbol, width=24, height=24)
 
    # From URL
    img = stackit.image("https://example.com/image.png", width=100, height=100)
 
+   # With rounded corners
+   img = stackit.image(
+       "https://example.com/avatar.jpg",
+       width=50,
+       height=50,
+       border_radius=8.0  # Rounded corners
+   )
+
+   # Circular image (border_radius = width/2)
+   img = stackit.image(
+       "https://example.com/avatar.jpg",
+       width=50,
+       height=50,
+       border_radius=25.0  # Perfect circle
+   )
+
 **Parameters:**
 
-* ``image_source`` (str or NSImage) - Path, URL, or NSImage object
-* ``width`` (int) - Image width (default: 24)
-* ``height`` (int) - Image height (default: 24)
+* ``image_path`` (str or SFSymbol) - SFSymbol instance or URL string
+* ``width`` (int) - Image width in pixels (optional)
+* ``height`` (int) - Image height in pixels (optional)
 * ``scaling`` (int) - NSImageScaling mode (optional)
+* ``border_radius`` (float) - Corner radius in points for rounded corners (optional)

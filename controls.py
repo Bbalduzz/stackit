@@ -10,7 +10,7 @@ in StackMenuItem layouts without needing to reference the StackMenuItem instance
 
 import Foundation
 import AppKit
-from Foundation import NSMakeRect, NSMakeSize, NSMakePoint, NSData
+from Foundation import NSMakeRect, NSMakeSize, NSMakePoint, NSData, NSNumber
 from AppKit import (
     NSObject, NSView, NSTextField, NSFont, NSColor, NSImageView, NSButton, NSSlider,
     NSProgressIndicator, NSComboBox, NSBezierPath, NSRoundLineCapStyle, NSTextView, NSScrollView, NSSize,
@@ -19,6 +19,13 @@ from AppKit import (
 )
 import httpx
 from .sfsymbol import SFSymbol
+
+# Import SpriteKit for line chart
+try:
+    import SpriteKit
+    SPRITEKIT_AVAILABLE = True
+except ImportError:
+    SPRITEKIT_AVAILABLE = False
 
 # Global registry to keep delegate references alive
 _delegate_registry = {}
@@ -125,7 +132,7 @@ class Editing(NSTextField):
     - ⌘A / ^A: Select All
     """
     def performKeyEquivalent_(self, event):
-        return performKeyEquivalent_(self, event)
+        return _perform_key_equivalent(self, event)
 
 
 class SecureEditing(NSSecureTextField):
@@ -135,7 +142,7 @@ class SecureEditing(NSSecureTextField):
     Note: Copy is disabled for security reasons in secure text fields.
     """
     def performKeyEquivalent_(self, event):
-        return performKeyEquivalent_(self, event)
+        return _perform_key_equivalent(self, event)
 
 
 class SearchFieldEditing(NSSearchField):
@@ -150,16 +157,42 @@ class SearchFieldEditing(NSSearchField):
     """
 
     def performKeyEquivalent_(self, event):
+        print(f"DEBUG SearchField performKeyEquivalent: {event.charactersIgnoringModifiers()}, modifiers: {event.modifierFlags()}")
         # Try our custom key handling first
-        if performKeyEquivalent_(self, event):
+        if _perform_key_equivalent(self, event):
+            print("DEBUG: _perform_key_equivalent returned True")
             return True
         # Fall back to super implementation
-        return objc.super(SearchFieldEditing, self).performKeyEquivalent_(event)
+        result = objc.super(SearchFieldEditing, self).performKeyEquivalent_(event)
+        print(f"DEBUG: super performKeyEquivalent returned {result}")
+        return result
 
     def keyDown_(self, event):
         """Handle key down events directly for search field"""
+        print(f"DEBUG SearchField keyDown: {event.charactersIgnoringModifiers()}, modifiers: {event.modifierFlags()}")
+
+        # Check for command key combinations
+        modifiers = event.modifierFlags() & AppKit.NSDeviceIndependentModifierFlagsMask
+        char = event.charactersIgnoringModifiers()
+
+        if modifiers == AppKit.NSCommandKeyMask:
+            print(f"DEBUG: Command key pressed with '{char}'")
+            if char == "v":
+                print("DEBUG: Command-V detected, calling paste")
+                self.paste_(self)
+                return
+            elif char == "c":
+                self.copy_(self)
+                return
+            elif char == "x":
+                self.cut_(self)
+                return
+            elif char == "a":
+                self.selectAll_(self)
+                return
+
         # Try our custom key handling first
-        if performKeyEquivalent_(self, event):
+        if _perform_key_equivalent(self, event):
             return
         # Fall back to super implementation
         objc.super(SearchFieldEditing, self).keyDown_(event)
@@ -171,6 +204,12 @@ class SearchFieldEditing(NSSearchField):
             # Enable edit menu when search field becomes first responder
             NSApp.updateWindows()
         return result
+
+    def respondsToSelector_(self, selector):
+        """Override to indicate we handle edit actions"""
+        if selector in [b"copy:", b"paste:", b"cut:", b"selectAll:", b"undo:", b"redo:"]:
+            return True
+        return objc.super(SearchFieldEditing, self).respondsToSelector_(selector)
 
     def validateMenuItem_(self, menuItem):
         """Validate edit menu items"""
@@ -193,21 +232,43 @@ class SearchFieldEditing(NSSearchField):
 
     def copy_(self, sender):
         """Handle copy action"""
-        if NSApp.sendAction_to_from_(b"copy:", None, self):
-            return
-        objc.super(SearchFieldEditing, self).copy_(sender)
+        editor = self.currentEditor()
+        if editor:
+            editor.copy_(sender)
+        else:
+            objc.super(SearchFieldEditing, self).copy_(sender)
 
     def paste_(self, sender):
         """Handle paste action"""
-        if NSApp.sendAction_to_from_(b"paste:", None, self):
-            return
-        objc.super(SearchFieldEditing, self).paste_(sender)
+        print(f"DEBUG: paste_ called, sender={sender}")
+        editor = self.currentEditor()
+        print(f"DEBUG: currentEditor={editor}")
+        if editor:
+            editor.paste_(sender)
+        else:
+            # If no editor, get clipboard and insert
+            from AppKit import NSPasteboard
+            pasteboard = NSPasteboard.generalPasteboard()
+            text = pasteboard.stringForType_(AppKit.NSPasteboardTypeString)
+            print(f"DEBUG: clipboard text={text}")
+            if text:
+                self.setStringValue_(text)
 
     def cut_(self, sender):
         """Handle cut action"""
-        if NSApp.sendAction_to_from_(b"cut:", None, self):
-            return
-        objc.super(SearchFieldEditing, self).cut_(sender)
+        editor = self.currentEditor()
+        if editor:
+            editor.cut_(sender)
+        else:
+            objc.super(SearchFieldEditing, self).cut_(sender)
+
+    def selectAll_(self, sender):
+        """Handle select all action"""
+        editor = self.currentEditor()
+        if editor:
+            editor.selectAll_(sender)
+        else:
+            objc.super(SearchFieldEditing, self).selectAll_(sender)
 
 
 class LinkLabel(NSTextField):
@@ -449,7 +510,7 @@ def link(text: str, url: str) -> NSTextField:
     link.setTranslatesAutoresizingMaskIntoConstraints_(False)
     return link
 
-def image(image_path, width=None, height=None, scaling=None):
+def image(image_path, width=None, height=None, scaling=None, border_radius=None):
     """Create an image view from a network URL or SFSymbol.
 
     Args:
@@ -457,6 +518,7 @@ def image(image_path, width=None, height=None, scaling=None):
         width: Optional width constraint
         height: Optional height constraint
         scaling: Optional NSImageScaling constant
+        border_radius: Optional corner radius in points (e.g., 8.0 for rounded corners)
 
     Returns:
         NSImageView with the loaded image
@@ -536,6 +598,12 @@ def image(image_path, width=None, height=None, scaling=None):
             image_view.widthAnchor().constraintEqualToConstant_(width).setActive_(True)
         if height:
             image_view.heightAnchor().constraintEqualToConstant_(height).setActive_(True)
+
+        # Apply border radius if specified
+        if border_radius is not None:
+            image_view.setWantsLayer_(True)
+            image_view.layer().setCornerRadius_(border_radius)
+            image_view.layer().setMasksToBounds_(True)
 
         return image_view
         
@@ -906,7 +974,6 @@ def slider(value=50, min_value=0, max_value=100, width=180, height=15, callback=
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from AppKit import NSApp
         from .delegate import StackAppDelegate
         slider.setTarget_(NSApp)
         slider.setAction_("sliderCallback:")
@@ -936,7 +1003,6 @@ def checkbox(title="", checked=False, callback=None):
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from AppKit import NSApp
         from .delegate import StackAppDelegate
         checkbox.setTarget_(NSApp)
         checkbox.setAction_("checkboxCallback:")
@@ -981,7 +1047,6 @@ def combobox(items=None, selected_index=-1, width=200, height=22, callback=None,
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from AppKit import NSApp
         from .delegate import StackAppDelegate
         combobox.setTarget_(NSApp)
         combobox.setAction_("comboboxCallback:")
@@ -1075,86 +1140,108 @@ def secure_text_input(text="", placeholder="", width=200, height=22, callback=No
 
     return text_field
 
+class SearchFieldWithShortcuts(NSView):
+    """Container view for search field that handles keyboard shortcuts."""
+
+    def initWithSearchField_(self, search_field):
+        self = objc.super(SearchFieldWithShortcuts, self).init()
+        if not self:
+            return None
+
+        self.search_field = search_field
+        self.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        # Add search field as subview
+        self.addSubview_(search_field)
+
+        # Set constraints to match search field size
+        search_field.topAnchor().constraintEqualToAnchor_(self.topAnchor()).setActive_(True)
+        search_field.bottomAnchor().constraintEqualToAnchor_(self.bottomAnchor()).setActive_(True)
+        search_field.leadingAnchor().constraintEqualToAnchor_(self.leadingAnchor()).setActive_(True)
+        search_field.trailingAnchor().constraintEqualToAnchor_(self.trailingAnchor()).setActive_(True)
+
+        return self
+
+    def performKeyEquivalent_(self, event):
+        """Intercept key equivalents and forward to search field."""
+        modifiers = event.modifierFlags() & AppKit.NSDeviceIndependentModifierFlagsMask
+        char = event.charactersIgnoringModifiers()
+
+        if modifiers == AppKit.NSCommandKeyMask:
+            if char == "v":
+                self.search_field.paste_(self)
+                return True
+            elif char == "c":
+                self.search_field.copy_(self)
+                return True
+            elif char == "x":
+                self.search_field.cut_(self)
+                return True
+            elif char == "a":
+                self.search_field.selectAll_(self)
+                return True
+
+        return objc.super(SearchFieldWithShortcuts, self).performKeyEquivalent_(event)
+
+
 def search_field(
     size: tuple[float, float] = (200, 25),
     target: NSObject | None = None,
     action = None,
+    placeholder: str = None,
     **kwargs,
-) -> NSSearchField:
-    """Create a search field.
+):
+    """Create a search field with copy/paste keyboard shortcut support.
 
     Args:
         size: width, height of the text field
         target: target to send action to
-        action: action to send when the date is changed
+        action: action to send when the search field is used
+        placeholder: placeholder text
         **kwargs: additional keyword/value attributes to configure
 
-    Returns NSSearchField
+    Returns SearchFieldWithShortcuts container with NSSearchField inside
+
+    Note: Returns a container view. To access the search field directly, use .search_field attribute.
     """
-    search_field = NSSearchField.alloc().initWithFrame_(NSMakeRect(0, 0, *size))
+    # Use the custom SearchFieldEditing class for keyboard shortcut support
+    search_field_control = SearchFieldEditing.alloc().initWithFrame_(NSMakeRect(0, 0, *size))
+
+    # Enable proper text editing behavior
+    search_field_control.setEditable_(True)
+    search_field_control.setSelectable_(True)
+    search_field_control.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+    # Set size constraints
+    search_field_control.widthAnchor().constraintEqualToConstant_(size[0]).setActive_(True)
+    search_field_control.heightAnchor().constraintEqualToConstant_(size[1]).setActive_(True)
+
+    # Enable standard text editing features
+    search_field_control.setImportsGraphics_(False)
+    search_field_control.setAllowsEditingTextAttributes_(False)
+
+    # Make sure the search field can become first responder
+    search_field_control.setRefusesFirstResponder_(False)
+
+    # Handle target/action
     if target:
-        search_field.setTarget_(target)
+        search_field_control.setTarget_(target)
     if action:
-        search_field.setAction_(action)
+        search_field_control.setAction_(action)
+
+    if placeholder:
+        search_field_control.setPlaceholderString_(placeholder)
+
     if kwargs:
         for key, value in kwargs.items():
             method = f"set{key[0].upper()}{key[1:]}_"
-            if hasattr(search_field, method):
-                getattr(search_field, method)(value)
+            if hasattr(search_field_control, method):
+                getattr(search_field_control, method)(value)
 
-    return search_field
+    # Wrap in container that handles keyboard shortcuts
+    # container = SearchFieldWithShortcuts.alloc().initWithSearchField_(search_field_control)
 
-# def search_field(size: tuple[float, float] = (200, 25), target=None, action=None, placeholder=None, callback=None, **kwargs) -> NSSearchField:
-#     """Create a search field with full keyboard shortcut support.
-
-#     Args:
-#         size: width, height of the text field
-#         target: target to send action to (takes precedence over callback)
-#         action: action to send when the search field is used
-#         placeholder: placeholder text
-#         callback: Python function to call when search field is used
-#         **kwargs: additional keyword/value attributes to configure
-
-#     Returns NSSearchField with copy/paste support
-#     """
-#     # Use the custom SearchFieldEditing class for keyboard shortcut support
-#     search_field = SearchFieldEditing.alloc().initWithFrame_(NSMakeRect(0, 0, *size))
-
-#     # Enable proper text editing behavior
-#     search_field.setEditable_(True)
-#     search_field.setSelectable_(True)
-#     search_field.setTranslatesAutoresizingMaskIntoConstraints_(False)
-
-#     # Enable standard text editing features
-#     search_field.setImportsGraphics_(False)
-#     search_field.setAllowsEditingTextAttributes_(False)
-
-#     # Make sure the search field can become first responder
-#     search_field.setRefusesFirstResponder_(False)
-
-#     # Handle target/action vs callback
-#     if target and action:
-#         search_field.setTarget_(target)
-#         search_field.setAction_(action)
-#     elif callback:
-#         from AppKit import NSApp
-#         from .delegate import StackAppDelegate
-#         search_field.setTarget_(NSApp)
-#         search_field.setAction_("searchFieldCallback:")
-#         # Register callback with delegate
-#         StackAppDelegate.register_callback(search_field, None, callback)
-
-#     if placeholder:
-#         search_field.setPlaceholderString_(placeholder)
-
-#     if kwargs:
-#         for key, value in kwargs.items():
-#             method = f"set{key[0].upper()}{key[1:]}_"
-#             if hasattr(search_field, method):
-#                 getattr(search_field, method)(value)
-
-#     return search_field
-
+    return search_field_control
 
 def radio_button(title: str, target=None, action=None, callback=None, **kwargs) -> NSButton:
     """Create a radio button
@@ -1172,7 +1259,6 @@ def radio_button(title: str, target=None, action=None, callback=None, **kwargs) 
     if target and action:
         radio_button = NSButton.buttonWithTitle_target_action_(title, target, action)
     elif callback:
-        from AppKit import NSApp
         from .delegate import StackAppDelegate
         radio_button = NSButton.buttonWithTitle_target_action_(title, NSApp, "radioButtonCallback:")
         # Register callback with delegate
@@ -1229,7 +1315,6 @@ def date_picker(
         date_picker.setTarget_(target)
         date_picker.setAction_(action)
     elif callback:
-        from AppKit import NSApp
         from .delegate import StackAppDelegate
         date_picker.setTarget_(NSApp)
         date_picker.setAction_("datePickerCallback:")
@@ -1292,3 +1377,316 @@ def time_picker(
             if hasattr(tp, method):
                 getattr(tp, method)(value)
     return tp
+
+
+def block(content_view, radius=8.0, padding=None, border_color=None, background_color=None):
+    """Create a bordered and rounded container around content (like SwiftUI's menuBlock).
+
+    Args:
+        content_view: The view to wrap (can be a StackView or any NSView)
+        radius: Corner radius in points (default: 8.0)
+        padding: Padding as (top, leading, bottom, trailing) or single value for all sides
+        border_color: Border color (default: subtle gray with transparency)
+        background_color: Background color (default: subtle white with transparency)
+
+    Returns:
+        NSView containing the content with border and background
+    """
+    # Parse padding
+    if padding is None:
+        padding_top = padding_leading = padding_bottom = padding_trailing = 12.0
+    elif isinstance(padding, (int, float)):
+        padding_top = padding_leading = padding_bottom = padding_trailing = float(padding)
+    elif len(padding) == 4:
+        padding_top, padding_leading, padding_bottom, padding_trailing = padding
+    else:
+        raise ValueError("padding must be a number or tuple of (top, leading, bottom, trailing)")
+
+    # Create container view
+    container = NSView.alloc().init()
+    container.setTranslatesAutoresizingMaskIntoConstraints_(False)
+    container.setWantsLayer_(True)
+
+    # Set up layer styling
+    layer = container.layer()
+    layer.setCornerRadius_(radius)
+    layer.setBorderWidth_(1.0)
+
+    # Set border color (default: subtle gray)
+    if border_color:
+        if isinstance(border_color, str) and border_color.startswith('#'):
+            # Parse hex color
+            hex_color = border_color[1:]
+            if len(hex_color) == 6:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                a = 0.5
+            elif len(hex_color) == 8:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                a = int(hex_color[6:8], 16) / 255.0
+            border_ns_color = NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
+        else:
+            border_ns_color = border_color
+    else:
+        # Default: subtle gray border with transparency
+        border_ns_color = NSColor.colorWithWhite_alpha_(0.5, 0.3)
+
+    layer.setBorderColor_(border_ns_color.CGColor())
+
+    # Set background color (default: subtle white)
+    if background_color:
+        if isinstance(background_color, str) and background_color.startswith('#'):
+            # Parse hex color
+            hex_color = background_color[1:]
+            if len(hex_color) == 6:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                a = 0.3
+            elif len(hex_color) == 8:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                a = int(hex_color[6:8], 16) / 255.0
+            bg_ns_color = NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
+        else:
+            bg_ns_color = background_color
+    else:
+        # Default: subtle white background with transparency
+        bg_ns_color = NSColor.colorWithWhite_alpha_(1.0, 0.05)
+
+    layer.setBackgroundColor_(bg_ns_color.CGColor())
+
+    # Add shadow for depth
+    layer.setShadowColor_(NSColor.colorWithWhite_alpha_(0.0, 0.1).CGColor())
+    layer.setShadowOffset_(NSMakeSize(0, -1))
+    layer.setShadowRadius_(3.0)
+    layer.setShadowOpacity_(1.0)
+
+    # Add content view
+    container.addSubview_(content_view)
+
+    # Set up constraints with padding
+    content_view.topAnchor().constraintEqualToAnchor_constant_(
+        container.topAnchor(), padding_top
+    ).setActive_(True)
+    content_view.bottomAnchor().constraintEqualToAnchor_constant_(
+        container.bottomAnchor(), -padding_bottom
+    ).setActive_(True)
+    content_view.leadingAnchor().constraintEqualToAnchor_constant_(
+        container.leadingAnchor(), padding_leading
+    ).setActive_(True)
+    content_view.trailingAnchor().constraintEqualToAnchor_constant_(
+        container.trailingAnchor(), -padding_trailing
+    ).setActive_(True)
+
+    return container
+
+
+def line_chart(points=None, dimensions=(60, 20), max_value=100.0, min_value=0.0,
+               color=None, line_width=0.5, fill=True):
+    """Create a line chart with smooth spline interpolation using SpriteKit.
+
+    Args:
+        points: List of data points (0.0 to max_value)
+        dimensions: Tuple of (width, height) in points
+        max_value: Maximum value for scaling (default: 100.0)
+        min_value: Minimum value for scaling (default: 0.0)
+        color: Line color (hex string or NSColor, default: label color)
+        line_width: Width of the line stroke (default: 0.5)
+        fill: Whether to fill under the line (default: True)
+
+    Returns:
+        NSView containing the line chart
+    """
+    if points is None:
+        points = []
+
+    width, height = dimensions
+
+    # Create container view
+    container = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, width, height))
+    container.setTranslatesAutoresizingMaskIntoConstraints_(False)
+    container.setWantsLayer_(True)
+
+    # Set size constraints
+    container.widthAnchor().constraintEqualToConstant_(width).setActive_(True)
+    container.heightAnchor().constraintEqualToConstant_(height).setActive_(True)
+
+    if len(points) < 2:
+        # Return empty view if not enough points
+        return container
+
+    # Parse color
+    if color is None:
+        chart_color = NSColor.labelColor()
+    elif isinstance(color, str):
+        if color.startswith('#'):
+            hex_color = color[1:]
+            if len(hex_color) == 6:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                chart_color = NSColor.colorWithRed_green_blue_alpha_(r, g, b, 1.0)
+            elif len(hex_color) == 8:
+                r = int(hex_color[0:2], 16) / 255.0
+                g = int(hex_color[2:4], 16) / 255.0
+                b = int(hex_color[4:6], 16) / 255.0
+                a = int(hex_color[6:8], 16) / 255.0
+                chart_color = NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
+            else:
+                chart_color = NSColor.labelColor()
+        else:
+            chart_color = NSColor.labelColor()
+    else:
+        chart_color = color
+
+    # Create custom view with spline interpolation
+    chart_view = _LineChartView.alloc().initWithFrame_points_maxValue_minValue_color_lineWidth_fill_(
+        NSMakeRect(0, 0, width, height),
+        points,
+        max_value,
+        min_value,
+        chart_color,
+        line_width,
+        fill
+    )
+
+    container.addSubview_(chart_view)
+
+    return container
+
+
+class _LineChartView(NSView):
+    """Custom view for rendering line charts with spline interpolation."""
+
+    def initWithFrame_points_maxValue_minValue_color_lineWidth_fill_(
+        self, frame, points, max_value, min_value, color, line_width, fill
+    ):
+        self = objc.super(_LineChartView, self).initWithFrame_(frame)
+        if not self:
+            return None
+
+        self._points = list(points)
+        self._max_value = float(max_value)
+        self._min_value = float(min_value)
+        self._color = color
+        self._line_width = float(line_width)
+        self._fill = fill
+        self.setWantsLayer_(True)
+
+        return self
+
+    def py_convert_value_to_y(self, value):
+        """Convert data value to y coordinate."""
+        bounds = self.bounds()
+        height = bounds.size.height
+        normalized = (value - self._min_value) / (self._max_value - self._min_value)
+        return max(0.5, min(height - 0.5, normalized * height))
+
+    def py_create_spline_path(self):
+        """Create bezier path with spline interpolation using SpriteKit."""
+        bounds = self.bounds()
+        width = bounds.size.width
+        height = bounds.size.height
+
+        if len(self._points) < 2:
+            return NSBezierPath.bezierPath()
+
+        # Calculate step between points
+        step_x = width / (len(self._points) - 1)
+
+        # Convert points to coordinates
+        x_points = [step_x * i for i in range(len(self._points))]
+        y_points = [self.py_convert_value_to_y(p) for p in self._points]
+
+        if SPRITEKIT_AVAILABLE:
+            try:
+                # Use SpriteKit keyframe sequence for spline interpolation
+                sequence = SpriteKit.SKKeyframeSequence.alloc().initWithKeyframeValues_times_(
+                    y_points,
+                    [NSNumber.numberWithDouble_(x) for x in x_points]
+                )
+                sequence.setInterpolationMode_(SpriteKit.SKInterpolationModeSpline)
+
+                # Sample the spline at regular intervals
+                path = NSBezierPath.bezierPath()
+                sample_step = 0.5
+                max_x = x_points[-1]
+
+                # Start at first point
+                first_y = sequence.sampleAtTime_(0.0)
+                if isinstance(first_y, (int, float)):
+                    path.moveToPoint_(NSMakePoint(0, max(0.5, min(height - 0.5, first_y))))
+                else:
+                    path.moveToPoint_(NSMakePoint(0, y_points[0]))
+
+                # Sample along the curve
+                x = sample_step
+                while x <= max_x:
+                    sampled_y = sequence.sampleAtTime_(x)
+                    if isinstance(sampled_y, (int, float)):
+                        y = max(0.5, min(height - 0.5, sampled_y))
+                    else:
+                        # Fallback to linear interpolation
+                        idx = int(x / step_x)
+                        if idx >= len(y_points) - 1:
+                            y = y_points[-1]
+                        else:
+                            t = (x - x_points[idx]) / step_x
+                            y = y_points[idx] * (1 - t) + y_points[idx + 1] * t
+                    path.lineToPoint_(NSMakePoint(x, y))
+                    x += sample_step
+
+                # End at last point
+                last_y = sequence.sampleAtTime_(max_x)
+                if isinstance(last_y, (int, float)):
+                    path.lineToPoint_(NSMakePoint(max_x, max(0.5, min(height - 0.5, last_y))))
+                else:
+                    path.lineToPoint_(NSMakePoint(max_x, y_points[-1]))
+
+                return path
+
+            except Exception as e:
+                print(f"SpriteKit spline interpolation failed: {e}")
+                # Fall through to simple line rendering
+
+        # Fallback: simple line chart without spline interpolation
+        path = NSBezierPath.bezierPath()
+        path.moveToPoint_(NSMakePoint(0, y_points[0]))
+        for i in range(1, len(self._points)):
+            path.lineToPoint_(NSMakePoint(x_points[i], y_points[i]))
+
+        return path
+
+    def drawRect_(self, dirty_rect):
+        """Draw the line chart."""
+        bounds = self.bounds()
+        width = bounds.size.width
+        height = bounds.size.height
+
+        # Get the spline path
+        path = self.py_create_spline_path()
+
+        if self._fill:
+            # Create closed path for fill
+            filled_path = path.copy()
+            # Add lines to close the path at bottom
+            filled_path.lineToPoint_(NSMakePoint(width, 0))
+            filled_path.lineToPoint_(NSMakePoint(0, 0))
+            filled_path.closePath()
+
+            # Fill with semi-transparent color
+            fill_color = self._color.colorWithAlphaComponent_(0.3)
+            fill_color.setFill()
+            filled_path.fill()
+
+        # Draw the stroke
+        path.setLineWidth_(self._line_width)
+        path.setLineJoinStyle_(AppKit.NSLineJoinStyleRound)
+        path.setLineCapStyle_(NSRoundLineCapStyle)
+        self._color.setStroke()
+        path.stroke()

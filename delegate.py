@@ -137,7 +137,11 @@ class StackAppDelegate(NSObject):
                         image.setTemplate_(True)
 
                     self._status_item.button().setImage_(image)
-                    self._status_item.button().setTitle_("")
+                    # Also set title if available (supports both icon and title)
+                    if hasattr(self._stack_app, '_title') and self._stack_app._title:
+                        self._status_item.button().setTitle_(self._stack_app._title)
+                    else:
+                        self._status_item.button().setTitle_("")
                 else:
                     # Fall back to title
                     self._set_status_bar_title()

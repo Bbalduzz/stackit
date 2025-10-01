@@ -7,9 +7,10 @@ Utility functions for StackIt applications.
 
 import AppKit
 from AppKit import NSAlert, NSApp, NSApplication, NSWorkspace
-from Foundation import NSUserNotification, NSUserNotificationCenter, NSLog
+from Foundation import NSUserNotification, NSUserNotificationCenter, NSLog, NSTimer, NSRunLoop, NSDefaultRunLoopMode, NSRunLoopCommonModes
 import subprocess
-
+import json
+import os
 
 def alert(title=None, message='', ok=None, cancel=None, icon_path=None):
     """Generate a simple alert window.
@@ -195,8 +196,6 @@ def load_preferences(app_name, defaults=None):
     Returns:
         preferences dictionary
     """
-    import json
-    import os
 
     if defaults is None:
         defaults = {}
@@ -216,7 +215,7 @@ def load_preferences(app_name, defaults=None):
         return defaults
 
 
-def create_timer(interval, callback, repeats=True):
+def timer(interval, callback, repeats=True):
     """Create a timer that calls a function at regular intervals.
 
     Args:
@@ -227,8 +226,6 @@ def create_timer(interval, callback, repeats=True):
     Returns:
         NSTimer object
     """
-    from Foundation import NSTimer, NSRunLoop, NSDefaultRunLoopMode
-
     # Create a simple wrapper class for the callback
     class TimerTarget(AppKit.NSObject):
         def initWithCallback_(self, cb):
@@ -245,10 +242,11 @@ def create_timer(interval, callback, repeats=True):
                     NSLog(f"Timer callback error: {e}")
 
     target = TimerTarget.alloc().initWithCallback_(callback)
-    timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+    timer = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
         interval, target, "timerFired:", None, repeats
     )
-
+    # adding timer to run loop in common modes so it works even when menus are open
+    NSRunLoop.currentRunLoop().addTimer_forMode_(timer, NSRunLoopCommonModes)
     return timer
 
 
@@ -268,7 +266,7 @@ def after(seconds, callback):
 
         stackbar.after(2.0, delayed_action)
     """
-    return create_timer(seconds, callback, repeats=False)
+    return timer(seconds, callback, repeats=False)
 
 
 def every(seconds, callback):
@@ -288,4 +286,4 @@ def every(seconds, callback):
         timer = stackbar.every(5.0, periodic_check)
         # Later: timer.invalidate() to stop
     """
-    return create_timer(seconds, callback, repeats=True)
+    return timer(seconds, callback, repeats=True)

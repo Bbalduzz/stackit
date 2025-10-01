@@ -87,15 +87,71 @@ class StackView(NSStackView):
             self.remove(view)
 
 
-class StackMenuItem(NSObject):
-    """A MenuItem that contains a custom NSStackView for building complex layouts."""
+# Standalone layout functions
+def hstack(controls=None, alignment=None, spacing=8.0):
+    """Create a horizontal stack view.
 
-    def __new__(cls, title, key_equivalent=None, callback=None):
+    Args:
+        controls: Optional list of controls to add to the stack
+        alignment: Optional alignment (NSLayoutAttribute constant)
+        spacing: Spacing between controls in points (default: 8.0)
+
+    Returns:
+        StackView configured for horizontal layout
+    """
+    stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationHorizontal)
+    if alignment is not None:
+        stack.setAlignment_(alignment)
+    else:
+        stack.setAlignment_(AppKit.NSLayoutAttributeCenterY)
+    stack.setSpacing_(spacing)
+
+    if controls:
+        stack.extend(controls)
+
+    return stack
+
+
+def vstack(controls=None, alignment=None, spacing=8.0):
+    """Create a vertical stack view.
+
+    Args:
+        controls: Optional list of controls to add to the stack
+        alignment: Optional alignment (NSLayoutAttribute constant)
+        spacing: Spacing between controls in points (default: 8.0)
+
+    Returns:
+        StackView configured for vertical layout
+    """
+    stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationVertical)
+    if alignment is not None:
+        stack.setAlignment_(alignment)
+    else:
+        stack.setAlignment_(AppKit.NSLayoutAttributeLeading)
+    stack.setSpacing_(spacing)
+
+    if controls:
+        stack.extend(controls)
+
+    return stack
+
+
+class MenuItem(NSObject):
+    """A MenuItem that can be either simple (title-based) or custom (layout-based).
+
+    Simple menu items:
+        MenuItem(title="Preferences", callback=my_func, key_equivalent=",")
+
+    Custom layout menu items:
+        MenuItem(layout=stackit.hstack([...]))
+    """
+
+    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None):
         # Create the instance using Objective-C allocation
         instance = cls.alloc().init()
         # Initialize it
-        instance._title = str(title) if title is not None else ""
         instance._callback = callback
+        instance._title = str(title) if title else ""
         instance._menuitem = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
             instance._title, "menuItemCallback:", ""
         )
@@ -111,6 +167,11 @@ class StackMenuItem(NSObject):
         instance._custom_view = None
         instance._root_stack = None
         instance._padding = (6.0, 12.0, 6.0, 12.0)  # top, leading, bottom, trailing
+        instance._is_simple = title is not None and layout is None
+
+        # Set layout if provided (only for custom menu items)
+        if layout is not None:
+            instance.set_layout(layout)
 
         return instance
 
@@ -125,12 +186,10 @@ class StackMenuItem(NSObject):
             else:
                 self._custom_view = NSView.alloc().init()
                 self._custom_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
-            # Only set the custom view if we actually need it
-            # This preserves normal menu item behavior until we add custom content
 
     @objc.python_method
-    def set_root_stack(self, stack_view):
-        """Set the root stack view for this menu item."""
+    def set_layout(self, stack_view):
+        """Set the layout for this menu item."""
         self._setup_custom_view()
 
         # Now we actually need the custom view, so set it on the menu item
@@ -150,80 +209,18 @@ class StackMenuItem(NSObject):
         stack_view.leadingAnchor().constraintEqualToAnchor_constant_(self._custom_view.leadingAnchor(), padding_leading).setActive_(True)
         stack_view.trailingAnchor().constraintEqualToAnchor_constant_(self._custom_view.trailingAnchor(), -padding_trailing).setActive_(True)
 
-    @objc.python_method
-    def hstack(self, controls=None, alignment=None, spacing=8.0):
-        """Create and return a horizontal stack view."""
-        stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationHorizontal)
-        if alignment is not None:
-            stack.setAlignment_(alignment)
-        else:
-            stack.setAlignment_(AppKit.NSLayoutAttributeCenterY)
-        stack.setSpacing_(spacing)
-
-        if controls:
-            stack.extend(controls)
-
-        return stack
-
-    @objc.python_method
-    def vstack(self, controls=None, alignment=None, spacing=8.0):
-        """Create and return a vertical stack view."""
-        stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationVertical)
-        if alignment is not None:
-            stack.setAlignment_(alignment)
-        else:
-            stack.setAlignment_(AppKit.NSLayoutAttributeLeading)
-        stack.setSpacing_(spacing)
-
-        if controls:
-            stack.extend(controls)
-
-        return stack
-
-    @objc.python_method
-    def label(self, text, font_size=13, bold=False, color=None):
-        """Create a text label."""
-        return controls.label(text, font_size, bold, color)
-
-    @objc.python_method
-    def image(self, image_path, width=None, height=None, scaling=None):
-        """Create an image view."""
-        return controls.image(image_path, width, height, scaling)
-
-    @objc.python_method
-    def button(self, title, target=None, action=None):
-        """Create a button."""
-        return controls.button(title, target, action)
-
-    @objc.python_method
-    def spacer(self, priority=250):
-        """Create a spacer view that expands to fill available space."""
-        return controls.spacer(priority)
-
-    @objc.python_method
-    def progress_bar(self, value=0.0, indeterminate=False, dimensions=(200, 20), show_text=True, color=None):
-        """Create a horizontal progress bar."""
-        return controls.progress_bar(value, indeterminate, dimensions, show_text, color)
-
-    @objc.python_method
-    def circular_progress(self, value=0.0, indeterminate=False, dimensions=(40, 40), color=None, line_width=3.0):
-        """Create a circular progress indicator."""
-        return controls.circular_progress(value, indeterminate, dimensions, color, line_width)
-
-
-    # Properties for compatibility
-    @objc.python_method
-    def title(self):
-        return self._title
-
-    @objc.python_method
-    def set_title(self, title):
-        self._title = str(title)
-        self._menuitem.setTitle_(self._title)
+        # Force the view to update its layout and redraw
+        self._custom_view.setNeedsLayout_(True)
+        self._custom_view.setNeedsDisplay_(True)
+        if hasattr(self._custom_view, 'layoutSubtreeIfNeeded'):
+            self._custom_view.layoutSubtreeIfNeeded()
 
     @objc.python_method
     def set_callback(self, callback):
+        """Set or update the callback for this menu item."""
         self._callback = callback
+        if callback:
+            StackAppDelegate.register_callback(self._menuitem, self, callback)
 
     @objc.python_method
     def menuitem(self):
@@ -290,9 +287,9 @@ class _StackApp(NSObject):
         # Add separator
         self.add_separator()
 
-        # Create and add Quit button with ⌘Q shortcut
-        quit_item = StackMenuItem("Quit", callback=self._default_quit_callback, key_equivalent="q")
-        self.add_item("_quit", quit_item)
+        # Create and add Quit button with ⌘Q shortcut (simple menu item)
+        quit_item = MenuItem(title="Quit", callback=self._default_quit_callback, key_equivalent="q")
+        self.add(quit_item)
 
     @objc.python_method
     def _ensure_default_items(self):
@@ -314,13 +311,24 @@ class _StackApp(NSObject):
         app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
 
     @objc.python_method
-    def add_item(self, key, stack_item):
-        """Add a StackMenuItem to the menu."""
-        if isinstance(stack_item, StackMenuItem):
-            self._menu_items[key] = stack_item
-            self._menu.addItem_(stack_item.menuitem())
-        else:
-            raise ValueError("Only StackMenuItem instances can be added")
+    def add(self, menu_item, key=None):
+        """Add a MenuItem to the menu.
+
+        Args:
+            menu_item: MenuItem instance to add
+            key: Optional key for later reference (auto-generated if not provided)
+        """
+        if not isinstance(menu_item, MenuItem):
+            raise ValueError("Only MenuItem instances can be added")
+
+        # Auto-generate key if not provided
+        if key is None:
+            key = f"_item_{len(self._menu_items)}"
+
+        self._menu_items[key] = menu_item
+        self._menu.addItem_(menu_item.menuitem())
+
+        return key  # Return key for reference if needed
 
     @objc.python_method
     def add_separator(self):
@@ -328,16 +336,27 @@ class _StackApp(NSObject):
         self._menu.addItem_(NSMenuItem.separatorItem())
 
     @objc.python_method
-    def remove_item(self, key):
-        """Remove a menu item."""
+    def remove(self, key):
+        """Remove a menu item by key.
+
+        Args:
+            key: Key of the menu item to remove
+        """
         if key in self._menu_items:
             item = self._menu_items[key]
             self._menu.removeItem_(item.menuitem())
             del self._menu_items[key]
 
     @objc.python_method
-    def get_item(self, key):
-        """Get a menu item by key."""
+    def get(self, key):
+        """Get a menu item by key.
+
+        Args:
+            key: Key of the menu item to retrieve
+
+        Returns:
+            MenuItem instance or None if not found
+        """
         return self._menu_items.get(key)
 
 
@@ -379,6 +398,22 @@ class _StackApp(NSObject):
         """Programmatically show the menu."""
         if self._delegate:
             self._delegate.show_menu()
+
+    @objc.python_method
+    def update(self):
+        """Force the menu to update and redraw.
+
+        Call this method after updating menu item layouts to ensure
+        changes are visible even when the menu is open.
+        """
+        # Force all menu items to update their views
+        for menu_item in self._menu_items.values():
+            if menu_item._custom_view:
+                menu_item._custom_view.setNeedsLayout_(True)
+                menu_item._custom_view.setNeedsDisplay_(True)
+
+        # Update the menu itself
+        self._menu.update()
 
 
 class StackApp(_StackApp):

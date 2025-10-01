@@ -22,28 +22,33 @@ A menu bar app that shows elapsed time with a rich layout::
             self.timer = stackit.every(1.0, self.update_display)
 
         def setup_ui(self):
-            # Create timer display item
-            self.item = stackit.StackMenuItem("Timer")
+            # Create timer display item (without layout initially)
+            self.item = stackit.MenuItem()
             self.update_display(None)
-            self.app.add_item("timer", self.item)
+            self.app.add(self.item)
 
             # Add reset button
-            reset_item = stackit.StackMenuItem("Reset")
-            layout = reset_item.hstack()
-            layout.append(stackit.button("🔄 Reset Timer", target=self, action="reset_timer:"))
-            reset_item.set_root_stack(layout)
-            self.app.add_item("reset", reset_item)
+            reset_layout = stackit.hstack([
+                stackit.button("🔄 Reset Timer", target=self, action="reset_timer:")
+            ])
+            reset_item = stackit.MenuItem(layout=reset_layout)
+            self.app.add(reset_item)
 
         def update_display(self, timer):
             elapsed = int(time.time() - self.start_time)
             minutes = elapsed // 60
             seconds = elapsed % 60
 
-            layout = self.item.hstack(spacing=8)
-            layout.append(stackit.label("Time:", bold=True))
-            layout.append(stackit.spacer())
-            layout.append(stackit.label(f"{minutes:02d}:{seconds:02d}", font_size=14))
-            self.item.set_root_stack(layout)
+            # Update layout dynamically
+            layout = stackit.hstack([
+                stackit.label("Time:", bold=True),
+                stackit.spacer(),
+                stackit.label(f"{minutes:02d}:{seconds:02d}", font_size=14)
+            ], spacing=8)
+            self.item.set_layout(layout)
+
+            # Force menu to redraw
+            self.app.update()
 
         def reset_timer_(self, sender):
             self.start_time = time.time()
@@ -73,18 +78,18 @@ Monitor network connectivity with visual indicators::
             self.check_network(None)
 
         def setup_ui(self):
-            # Status display
-            self.status_item = stackit.StackMenuItem("Status")
-            self.app.add_item("status", self.status_item)
+            # Status display (dynamic updates)
+            self.status_item = stackit.MenuItem()
+            self.app.add(self.status_item)
 
             self.app.add_separator()
 
             # Manual check button
-            check_item = stackit.StackMenuItem("Check")
-            layout = check_item.hstack()
-            layout.append(stackit.button("🔄 Check Now", target=self, action="manual_check:"))
-            check_item.set_root_stack(layout)
-            self.app.add_item("check", check_item)
+            check_layout = stackit.hstack([
+                stackit.button("🔄 Check Now", target=self, action="manual_check:")
+            ])
+            check_item = stackit.MenuItem(layout=check_layout)
+            self.app.add(check_item)
 
         def check_network(self, timer):
             try:
@@ -101,33 +106,37 @@ Monitor network connectivity with visual indicators::
             self.update_display()
 
         def update_display(self):
-            layout = self.status_item.hstack(spacing=8)
-
             if self.connected:
                 icon = stackit.image(
-                    stackit.SFSymbol.create("wifi", size=16, color="green"),
+                    stackit.SFSymbol("wifi", point_size=16, color="green"),
                     width=16, height=16
                 )
                 status_text = "Connected"
                 color = "green"
             else:
                 icon = stackit.image(
-                    stackit.SFSymbol.create("wifi.slash", size=16, color="red"),
+                    stackit.SFSymbol("wifi.slash", point_size=16, color="red"),
                     width=16, height=16
                 )
                 status_text = "Disconnected"
                 color = "red"
 
-            layout.append(icon)
-            layout.append(stackit.label(status_text, color=color))
-            self.status_item.set_root_stack(layout)
+            # Update layout
+            layout = stackit.hstack([
+                icon,
+                stackit.label(status_text, color=color)
+            ], spacing=8)
+            self.status_item.set_layout(layout)
 
             # Update app icon
-            app_icon = stackit.SFSymbol.create(
+            app_icon = stackit.SFSymbol(
                 "wifi" if self.connected else "wifi.slash",
-                size=16
+                point_size=16
             )
             self.app.set_icon(app_icon)
+
+            # Force menu to redraw
+            self.app.update()
 
         def manual_check_(self, sender):
             self.check_network(None)

@@ -145,8 +145,10 @@ Load application preferences.
 Timers
 ------
 
-create_timer()
-~~~~~~~~~~~~~~
+All timer functions use ``NSRunLoopCommonModes`` to ensure timers continue firing even when menus are open. This is essential for dynamic menu updates.
+
+timer()
+~~~~~~~
 
 Create a repeating or one-shot timer.
 
@@ -156,10 +158,10 @@ Create a repeating or one-shot timer.
        print("Timer fired!")
 
    # Repeating timer (every 5 seconds)
-   timer = stackit.create_timer(5.0, update_status, repeats=True)
+   timer = stackit.timer(5.0, update_status, repeats=True)
 
    # One-shot timer
-   timer = stackit.create_timer(10.0, update_status, repeats=False)
+   timer = stackit.timer(10.0, update_status, repeats=False)
 
 **Parameters:**
 
@@ -197,6 +199,8 @@ Execute a function repeatedly (convenience wrapper for repeating timer).
 
    def periodic_update(timer):
        print("Updating...")
+       # Update UI
+       app.update()  # Force menu to redraw
 
    timer = stackit.every(10.0, periodic_update)
 
@@ -208,6 +212,8 @@ Execute a function repeatedly (convenience wrapper for repeating timer).
 **Returns:**
 
 * NSTimer object
+
+**Note:** When updating menu layouts in timer callbacks, call ``app.update()`` to force the menu to redraw.
 
 Application Control
 -------------------

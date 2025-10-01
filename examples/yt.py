@@ -4,7 +4,7 @@ import threading
 import logging
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-import stackbar
+import stackit
 from pytubefix import YouTube
 from AppKit import NSPasteboard
 import json
@@ -16,10 +16,10 @@ logging.basicConfig(
     datefmt='%H:%M:%S'
 )
 
-class YTDLPApp(stackbar.StackApp):
+class YTDLPApp(stackit.StackApp):
     def __init__(self):
         # Use objc.super for Objective-C inheritance
-        super(YTDLPApp, self).__init__(icon=stackbar.SFSymbol("arrow.down.circle.fill", rendering="hierarchical"))
+        super(YTDLPApp, self).__init__(icon=stackit.SFSymbol("arrow.down.circle.fill", rendering="hierarchical"))
 
         self.video_info = None
         self.menu_item = None
@@ -31,32 +31,30 @@ class YTDLPApp(stackbar.StackApp):
         self.yt = None
 
         # Load preferences
-        prefs = stackbar.load_preferences("ytdlp", defaults={"download_directory": os.path.expanduser("~/Downloads")})
+        prefs = stackit.load_preferences("ytdlp", defaults={"download_directory": os.path.expanduser("~/Downloads")})
         self.download_directory = prefs.get("download_directory", os.path.expanduser("~/Downloads"))
         logging.info(f"📁 Download directory: {self.download_directory}")
 
     def setup_menu(self):
-        self.menu_item = stackbar.StackMenuItem("Test")
+        self.menu_item = stackit.MenuItem()
 
         # Title section
-        self.settings_button = stackbar.button(
-            image=stackbar.SFSymbol("gear"),
+        self.settings_button = stackit.button(
+            image=stackit.SFSymbol("gear"),
             image_position="only",
             target=self,
             action="openSettings:"
         )
 
-        self.title_stack = self.menu_item.hstack(
-        	controls=[
-        		stackbar.image(stackbar.SFSymbol("arrow.down.circle.dotted")),
-        		stackbar.label("Youtube downloader", font_size=13),
-        		stackbar.spacer(),
-        		self.settings_button
-        	]
-        )
+        self.title_stack = stackit.hstack([
+            stackit.image(stackit.SFSymbol("arrow.down.circle.dotted")),
+            stackit.label("Youtube downloader", font_size=13),
+            stackit.spacer(),
+            self.settings_button
+        ])
 
         # Search field
-        self.search_field = stackbar.search_field(
+        self.search_field = stackit.search_field(
             placeholder="Paste YouTube URL here",
             target=self,
             action="processURL:",
@@ -64,49 +62,44 @@ class YTDLPApp(stackbar.StackApp):
         )
 
         # Preview section - starts with placeholder label
-        self.preview_container = self.menu_item.vstack(controls=[], spacing=5)
-        self.preview_placeholder = stackbar.label("Enter a YouTube URL to preview", font_size=10, color="gray")
-        self.preview_container.append(self.preview_placeholder)
+        self.preview_container = stackit.vstack([
+            stackit.label("Enter a YouTube URL to preview", font_size=10, width=200, color="gray")
+        ], spacing=5)
 
         # Status section - for progress bar or completion messages
-        self.status_container = self.menu_item.vstack(controls=[], spacing=30)
+        self.status_container = stackit.vstack([], spacing=30)
 
         # Options and download controls
-        self.combobox = stackbar.combobox(
+        self.combobox = stackit.combobox(
             items=["Best Quality", "Only Audio (mp3)", "Dump JSON Info"],
             selected_index=0,
             width=120,
         )
 
-        self.download_button = stackbar.button(
+        self.download_button = stackit.button(
             title="Download",
             target=self,
             action="downloadMedia:"
         )
         self.download_button.setEnabled_(False)
 
-        self.options_stack = self.menu_item.hstack(
-            [
-                stackbar.spacer(),
-                self.combobox,
-                self.download_button
-            ]
-        )
+        self.options_stack = stackit.hstack([
+            stackit.spacer(),
+            self.combobox,
+            self.download_button
+        ])
 
         # Main container - this stays constant
-        self.main_stack = self.menu_item.vstack(
-            controls=[
-            	self.title_stack,
-            	self.search_field,
-                self.preview_container,
-                self.options_stack,
-                self.status_container
-            ],
-            spacing=10
-        )
+        self.main_stack = stackit.vstack([
+            self.title_stack,
+            self.search_field,
+            stackit.block(self.preview_container),
+            self.options_stack,
+            self.status_container
+        ], spacing=10)
 
-        self.menu_item.set_root_stack(self.main_stack)
-        self.add_item("ui", self.menu_item)
+        self.menu_item.set_layout(self.main_stack)
+        self.add(self.menu_item)
 
         # Check pasteboard on startup
         self.check_pasteboard()
@@ -131,7 +124,7 @@ class YTDLPApp(stackbar.StackApp):
         """Open settings dialog to choose download directory"""
         logging.info("⚙️  Opening settings...")
 
-        selected_dir = stackbar.choose_directory(
+        selected_dir = stackit.choose_directory(
             title="Choose Download Directory",
             default_directory=self.download_directory
         )
@@ -141,7 +134,7 @@ class YTDLPApp(stackbar.StackApp):
             logging.info(f"📁 Download directory updated: {self.download_directory}")
 
             # Save preference
-            stackbar.save_preferences("ytdlp", {"download_directory": self.download_directory})
+            stackit.save_preferences("ytdlp", {"download_directory": self.download_directory})
             logging.info("💾 Preferences saved")
 
     def processURL_(self, sender):
@@ -160,7 +153,7 @@ class YTDLPApp(stackbar.StackApp):
 
         # Update preview to show loading
         self.preview_container.clear()
-        loading_label = stackbar.label("Loading video info...", font_size=10, color="gray")
+        loading_label = stackit.label("Loading video info...", font_size=10, color="gray")
         self.preview_container.append(loading_label)
 
         # Fetch video info in background
@@ -229,20 +222,16 @@ class YTDLPApp(stackbar.StackApp):
         duration_str = f"{minutes}:{seconds:02d}"
 
         # Create preview content
-        self.video_preview = self.menu_item.hstack([
-            stackbar.image(thumbnail_url, width=100) if thumbnail_url else stackbar.spacer(),
-            self.menu_item.vstack(
-                controls=[
-                    stackbar.label(title, font_size=11, width=200, bold=True, wraps=True),
-                    self.menu_item.hstack(
-                        controls=[
-                            stackbar.label(channel, font_size=9, color="gray"),
-                            stackbar.label("-", font_size=9),
-                            stackbar.label(duration_str, font_size=9, color="gray")
-                        ]
-                    )
-                ]
-            )
+        self.video_preview = stackit.hstack([
+            stackit.image(thumbnail_url, width=100, border_radius=8) if thumbnail_url else stackit.spacer(),
+            stackit.vstack([
+                stackit.label(title, font_size=11, width=200, bold=True, wraps=True),
+                stackit.hstack([
+                    stackit.label(channel, font_size=9, color="gray"),
+                    stackit.label("-", font_size=9),
+                    stackit.label(duration_str, font_size=9, color="gray")
+                ])
+            ])
         ])
 
         # Clear preview container and add video preview
@@ -263,7 +252,7 @@ class YTDLPApp(stackbar.StackApp):
 
         # Clear preview and show error message
         self.preview_container.clear()
-        error_label = stackbar.label("Error loading video. Check URL and try again.",
+        error_label = stackit.label("Error loading video. Check URL and try again.",
                                     font_size=10, color="gray")
         self.preview_container.append(error_label)
 
@@ -285,9 +274,9 @@ class YTDLPApp(stackbar.StackApp):
         self.download_button.setEnabled_(False)
 
         # Add progress bar to status container
-        self.progress_bar = stackbar.progress_bar(value=0.0, dimensions=(300, 20), show_text=False)
+        self.progress_bar = stackit.progress_bar(value=0.0, dimensions=(300, 20), show_text=False)
         self.status_container.clear()
-        self.status_container.append(stackbar.label("Downloading in progress:", color="gray", font_size=9))
+        self.status_container.append(stackit.label("Downloading in progress:", color="gray", font_size=9))
         self.status_container.append(self.progress_bar)
 
         def download():
@@ -387,7 +376,7 @@ class YTDLPApp(stackbar.StackApp):
 
         # Send notification with file path
         file_path = getattr(self, 'download_path', 'Unknown location')
-        stackbar.notification(
+        stackit.notification(
             title="Download completed",
             message=file_path
         )
@@ -397,6 +386,6 @@ if __name__ == "__main__":
     app.setup_menu()
 
     # Check pasteboard every 2 seconds for new YouTube URLs
-    stackbar.every(2.0, lambda timer: app.check_pasteboard())
+    stackit.every(2.0, lambda timer: app.check_pasteboard())
 
     app.run()
