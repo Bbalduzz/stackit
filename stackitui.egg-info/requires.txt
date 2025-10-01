@@ -1,0 +1,6 @@
+pyobjc-framework-Cocoa>=8.0
+httpx>=0.23.0
+
+[dev]
+sphinx>=4.0
+sphinx-rtd-theme>=1.0

@@ -1,3 +1,38 @@
+Metadata-Version: 2.4
+Name: stackitui
+Version: 0.2.0
+Summary: A modern, powerful framework for creating beautiful macOS menu bar applications with rich custom layouts
+Author: Edoardo Balducci
+License: MIT
+Project-URL: Homepage, https://github.com/Bbalduzz/stackit
+Project-URL: Documentation, https://python-stackit.readthedocs.io
+Project-URL: Repository, https://github.com/Bbalduzz/stackit
+Project-URL: Bug Tracker, https://github.com/Bbalduzz/stackit/issues
+Keywords: macos,statusbar,menubar,gui,appkit,pyobjc,menu,statusitem,sfsymbols,ui
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Software Development :: User Interfaces
+Classifier: Topic :: Desktop Environment :: Window Managers
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pyobjc-framework-Cocoa>=8.0
+Requires-Dist: httpx>=0.23.0
+Provides-Extra: dev
+Requires-Dist: sphinx>=4.0; extra == "dev"
+Requires-Dist: sphinx-rtd-theme>=1.0; extra == "dev"
+Dynamic: license-file
+
 <h1 align="center">
   <p>StackIt</p>
   <img width="100%" align="center" src="https://github.com/user-attachments/assets/28741adf-c190-4292-9675-c9e8a2861b09" alt="logo">
@@ -36,16 +71,12 @@ StackIt provides an elegant Python API for building native macOS status bar apps
 ### Installation
 
 ```bash
-git clone https://github.com/bbalduzz/stackit.git
+git clone https://github.com/yourusername/stackit.git
 cd stackit
 pip install -e .
 ```
 
-Or use it from pypi
-
-```bash
-pip install stackitui
-```
+Or simply copy the `stackit` directory into your project.
 
 **Requirements:**
 - macOS 11.0+ (for SF Symbols)
