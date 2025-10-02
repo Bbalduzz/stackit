@@ -1,6 +1,6 @@
 <h1 align="center">
   <span>
-      <img width="15%" align="center" src="/docs/stackit-logo-white.png" alt="logo">
+      <img width="15%" align="center" src="/docs/_static/stackit-logo-white.png" alt="logo">
       <p>StackIt</p>
   </span>
 </h1>

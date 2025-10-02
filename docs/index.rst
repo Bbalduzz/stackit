@@ -1,4 +1,4 @@
-.. image:: stackit-logo-white.png
+.. image:: stackit-logo-dark.png
    :width: 110px
 
 StacKit

@@ -42,7 +42,7 @@ html_theme = "revitron_sphinx_theme"
 html_theme_options = {
     'navigation_depth': 5,
     'github_url': 'https://github.com/bbalduzz/stackit',
-    'color_scheme': 'dark'
+    'color_scheme': 'light'
 }
 
 # Landing page configuration
@@ -57,8 +57,8 @@ html_context = {
     }
 }
 
-html_logo = 'stackit-logo.png'
-html_title = 'StacKit'
+html_logo = '_static/stackit-logo-dark.png'
+html_title = ''  # Empty to hide text, show only logo
 html_show_sourcelink = True
 htmlhelp_basename = slug
 
