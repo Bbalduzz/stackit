@@ -45,7 +45,20 @@ html_theme_options = {
     'color_scheme': 'dark'
 }
 
-html_title = 'StackIt Documentation'
+# Landing page configuration
+html_context = {
+    'landing_page': {
+        'menu': [
+            {'title': 'Documentation', 'url': 'installation.html'},
+            {'title': 'Quick Start', 'url': 'quickstart.html'},
+            {'title': 'API Reference', 'url': 'api/index.html'},
+            {'title': 'GitHub', 'url': 'https://github.com/bbalduzz/stackit'}
+        ]
+    }
+}
+
+html_logo = 'stackit-logo.png'
+html_title = 'StacKit'
 html_show_sourcelink = True
 htmlhelp_basename = slug
 
