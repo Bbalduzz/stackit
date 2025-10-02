@@ -10,7 +10,7 @@ rumps library.
 """
 
 __title__ = 'stackit'
-__version__ = '0.2.0'
+__version__ = '0.2.2'
 __author__ = 'Edoardo Balducci'
 __license__ = 'MIT'
 

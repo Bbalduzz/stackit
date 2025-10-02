@@ -1,7 +1,7 @@
 <h1 align="center">
   <span>
       <img width="15%" align="center" src="/docs/stackit-logo-white.png" alt="logo">
-      <p>StackIt</p>
+      <p>StacKit</p>
   </span>
 </h1>
 
@@ -160,6 +160,11 @@ submenu_items = [
     stackit.MenuItem(title="Option 2", callback=func2)
 ]
 item = stackit.MenuItem(title="Settings ▶", submenu=submenu_items)
+
+# Option 5: Menu item with badge (macOS 14.0+)
+item = stackit.MenuItem(title="Updates", badge="updates")
+item.set_badge("new-items", count=5)  # With count
+item.set_badge(None)  # Remove badge
 ```
 
 ### 3. Layouts - hstack & vstack

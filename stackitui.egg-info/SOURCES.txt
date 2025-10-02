@@ -26,9 +26,11 @@ docs/api/delegate.rst
 docs/api/index.rst
 docs/api/sfsymbol.rst
 docs/api/utils.rst
+examples/badge_demo.py
 examples/blocks_demo.py
 examples/controls_demo.py
 examples/sfsymbol_rendering_modes.py
+examples/submenu_demo.py
 examples/timer.py
 examples/yt.py
 stackitui.egg-info/PKG-INFO

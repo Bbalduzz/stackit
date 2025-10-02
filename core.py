@@ -149,7 +149,7 @@ class MenuItem(NSObject):
         MenuItem(title="Settings", submenu=[MenuItem(...), MenuItem(...)])
     """
 
-    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None, submenu=None):
+    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None, submenu=None, badge=None):
         # Create the instance using Objective-C allocation
         instance = cls.alloc().init()
         # Initialize it
@@ -172,6 +172,7 @@ class MenuItem(NSObject):
         instance._padding = (6.0, 12.0, 6.0, 12.0)  # top, leading, bottom, trailing
         instance._is_simple = title is not None and layout is None
         instance._submenu = None
+        instance._badge = None
 
         # Set layout if provided (only for custom menu items)
         if layout is not None:
@@ -180,6 +181,10 @@ class MenuItem(NSObject):
         # Set submenu if provided
         if submenu is not None:
             instance.set_submenu(submenu)
+
+        # Set badge if provided (macOS 14.0+)
+        if badge is not None:
+            instance.set_badge(badge)
 
         return instance
 
@@ -261,6 +266,67 @@ class MenuItem(NSObject):
         # Attach submenu to this menu item
         self._menuitem.setSubmenu_(submenu)
         self._submenu = submenu
+
+    @objc.python_method
+    def set_badge(self, badge_type, count=None):
+        """Set a badge for this menu item (macOS 14.0+).
+
+        Args:
+            badge_type: String indicating badge type
+                       Supported types: "updates", "new-items", "alerts", or None to remove
+            count: Optional badge count (integer). If None, uses system default.
+
+        Example:
+            item.set_badge("updates")           # Shows "updates available" badge
+            item.set_badge("updates", count=5)  # Shows badge with count 5
+            item.set_badge("new-items")         # Shows "new items" badge
+            item.set_badge("alerts")            # Shows "alerts" badge
+            item.set_badge(None)                # Removes badge
+        """
+        # Check if NSMenuItemBadge is available (macOS 14.0+)
+        if not hasattr(AppKit, 'NSMenuItemBadge'):
+            NSLog("Warning: NSMenuItemBadge requires macOS 14.0 or later")
+            return
+
+        try:
+            # Remove badge if None
+            if badge_type is None:
+                self._menuitem.setBadge_(None)
+                self._badge = None
+                return
+
+            # Map badge type string to NSMenuItemBadgeType constant
+            if isinstance(badge_type, str):
+                badge_type_lower = badge_type.lower().replace('-', '').replace('_', '')
+
+                if badge_type_lower in ['updates', 'update']:
+                    badge_type_enum = AppKit.NSMenuItemBadgeTypeUpdates
+                elif badge_type_lower in ['newitems', 'new']:
+                    badge_type_enum = AppKit.NSMenuItemBadgeTypeNewItems
+                elif badge_type_lower in ['alerts', 'alert']:
+                    badge_type_enum = AppKit.NSMenuItemBadgeTypeAlerts
+                else:
+                    NSLog(f"Warning: Unknown badge type '{badge_type}'. Use 'updates', 'new-items', or 'alerts'")
+                    return
+            else:
+                # Assume it's already a badge type constant
+                badge_type_enum = badge_type
+
+            # Create badge with count if specified, otherwise use type-only initializer
+            if count is not None:
+                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(count, badge_type_enum)
+            else:
+                # Use count 0 for default badge appearance (no number shown)
+                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(0, badge_type_enum)
+
+            # Set the badge on the menu item
+            if hasattr(self._menuitem, 'setBadge_'):
+                self._menuitem.setBadge_(badge)
+                self._badge = badge
+            else:
+                NSLog("Warning: setBadge_ not available on NSMenuItem")
+        except Exception as e:
+            NSLog(f"Error setting badge: {e}")
 
     @objc.python_method
     def menuitem(self):

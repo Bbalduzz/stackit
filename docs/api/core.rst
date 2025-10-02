@@ -86,15 +86,35 @@ Menu items can be either simple (title-based) or custom (layout-based).
 * ``callback`` - Optional callback function for menu item clicks
 * ``key_equivalent`` - Optional keyboard shortcut (e.g., "q" for ⌘Q, "," for ⌘,)
 * ``submenu`` - Optional list of MenuItem objects or 'separator' strings to create a submenu
+* ``badge`` - Optional badge type: "updates", "new-items", or "alerts" (macOS 14.0+)
 
 **Methods:**
 
 * ``set_layout(stack_view)`` - Set or update the layout for the menu item
 * ``set_callback(callback)`` - Set or update the callback function
 * ``set_submenu(items)`` - Set or update submenu items (list of MenuItem or 'separator')
+* ``set_badge(badge_type, count=None)`` - Set badge with optional count - macOS 14.0+
 * ``menuitem()`` - Get the underlying NSMenuItem
 
-**Note:** Use ``title`` for simple text menu items, or ``layout`` for rich custom layouts. Don't use both together. When using ``submenu``, the ``callback`` parameter is ignored.
+**Badges (macOS 14.0+):**
+
+.. code-block:: python
+
+   # Add badge when creating item (no count shown)
+   item = stackit.MenuItem(
+       title="Updates Available",
+       callback=check_updates,
+       badge="updates"
+   )
+
+   # Set badge with count
+   item.set_badge("new-items", count=5)
+   item.set_badge("alerts", count=12)
+
+   # Remove badge
+   item.set_badge(None)
+
+**Note:** Use ``title`` for simple text menu items, or ``layout`` for rich custom layouts. Don't use both together. When using ``submenu``, the ``callback`` parameter is ignored. Badges require macOS 14.0+.
 
 Layout Functions
 ----------------
