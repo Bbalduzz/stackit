@@ -3,15 +3,16 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+import revitron_sphinx_theme
 
 # -- Project information -----------------------------------------------------
 project = 'stackit'
 copyright = '2025, stackit contributors'
-author = 'stackit contributors'
+author = 'Edoardo Balducci'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
-version = '0.1.0'
+release = '0.2.0'
+version = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -20,13 +21,14 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
+    "revitron_sphinx_theme",
 ]
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = 'sphinx_rtd_theme'
+html_theme = "revitron_sphinx_theme"
 html_static_path = ['_static']
 
 # -- Extension configuration -------------------------------------------------
