@@ -511,10 +511,10 @@ def link(text: str, url: str) -> NSTextField:
     return link
 
 def image(image_path, width=None, height=None, scaling=None, border_radius=None):
-    """Create an image view from a network URL or SFSymbol.
+    """Create an image view from a network URL, SFSymbol, or NSImage.
 
     Args:
-        image_path: SFSymbol instance or URL string (http:// or https://)
+        image_path: SFSymbol instance, NSImage object, or URL string (http:// or https://)
         width: Optional width constraint
         height: Optional height constraint
         scaling: Optional NSImageScaling constant
@@ -525,9 +525,28 @@ def image(image_path, width=None, height=None, scaling=None, border_radius=None)
     """
     try:
         image = None
-        
+
+        # Handle NSImage objects directly
+        if isinstance(image_path, AppKit.NSImage):
+            image = image_path
+            if image:
+                image.setScalesWhenResized_(True)
+                original_size = image.size()
+
+                # Calculate dimensions maintaining aspect ratio
+                if width and height:
+                    image.setSize_(NSMakeSize(width, height))
+                elif width and not height:
+                    aspect_ratio = original_size.height / original_size.width if original_size.width > 0 else 1
+                    height = width * aspect_ratio
+                    image.setSize_(NSMakeSize(width, height))
+                elif height and not width:
+                    aspect_ratio = original_size.width / original_size.height if original_size.height > 0 else 1
+                    width = height * aspect_ratio
+                    image.setSize_(NSMakeSize(width, height))
+
         # Handle SFSymbol instances
-        if isinstance(image_path, SFSymbol):
+        elif isinstance(image_path, SFSymbol):
             image = image_path()  # Call SFSymbol to get NSImage
             if image:
                 image.setScalesWhenResized_(True)
@@ -544,7 +563,7 @@ def image(image_path, width=None, height=None, scaling=None, border_radius=None)
                     aspect_ratio = original_size.width / original_size.height
                     width = height * aspect_ratio
                     image.setSize_(NSMakeSize(width, height))
-        
+
         # Handle network URLs
         elif isinstance(image_path, str) and (image_path.startswith('http://') or image_path.startswith('https://')):
             # Fetch image data with httpx
@@ -1082,7 +1101,7 @@ def text_field(
     text_field.setBezelStyle_(AppKit.NSTextFieldSquareBezel)
     text_field.setTranslatesAutoresizingMaskIntoConstraints_(False)
     text_field.setWantsLayer_(True)
-    text_field.becomeFirstResponder()
+    # Don't call becomeFirstResponder() automatically - it can interfere with menu interaction
     width_constraint = text_field.widthAnchor().constraintEqualToConstant_(size[0])
     width_constraint.setActive_(True)
     height_constraint = text_field.heightAnchor().constraintEqualToConstant_(size[1])

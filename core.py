@@ -27,7 +27,7 @@ _STACK_APP_INSTANCE = None
 _TIMERS = weakref.WeakKeyDictionary()
 
 class ClickableView(NSView):
-    """Custom NSView that forwards clicks to our callback system."""
+    """Custom NSView that forwards clicks to our callback system and manages focus properly."""
 
     def initWithMenuItem_(self, menuitem):
         self = objc.super(ClickableView, self).init()
@@ -35,6 +35,10 @@ class ClickableView(NSView):
             self._menuitem = menuitem
             self.setTranslatesAutoresizingMaskIntoConstraints_(False)
         return self
+
+    def acceptsFirstResponder(self):
+        """Prevent this view from becoming first responder to keep menu responsive."""
+        return False
 
     def mouseDown_(self, event):
         """Handle mouse down events and forward to delegate callback system."""
@@ -110,6 +114,33 @@ def hstack(controls=None, alignment=None, spacing=8.0):
         stack.extend(controls)
 
     return stack
+
+
+class ResponsiveMenu(NSMenu):
+    """Custom NSMenu that maintains keyboard responsiveness even when controls have focus."""
+
+    def performKeyEquivalent_(self, event):
+        """Handle keyboard events even when menu items have focused controls."""
+        # Try the standard menu key equivalent handling first
+        if objc.super(ResponsiveMenu, self).performKeyEquivalent_(event):
+            return True
+
+        # If that didn't work and a control has focus, ensure key equivalents still work
+        # by checking all menu items manually
+        modifiers = event.modifierFlags()
+        characters = event.charactersIgnoringModifiers()
+
+        if characters and (modifiers & AppKit.NSEventModifierFlagCommand):
+            # Walk through menu items and check for matching key equivalents
+            for item in self.itemArray():
+                if item.keyEquivalent() == characters:
+                    # Found a match, perform the action
+                    if item.target() and item.action():
+                        NSApplication.sharedApplication().sendAction_to_from_(
+                            item.action(), item.target(), self
+                        )
+                        return True
+        return False
 
 
 def vstack(controls=None, alignment=None, spacing=8.0):
@@ -250,8 +281,8 @@ class MenuItem(NSObject):
             ]
             item.set_submenu(submenu_items)
         """
-        # Create a new NSMenu for the submenu
-        submenu = NSMenu.alloc().init()
+        # Create a new responsive menu for the submenu
+        submenu = ResponsiveMenu.alloc().init()
         submenu.setAutoenablesItems_(False)
 
         # Add items to submenu
@@ -362,8 +393,10 @@ class _StackApp(NSObject):
             # Create and set up the delegate
             self._delegate = StackAppDelegate.alloc().initWithStackApp_(self)
 
-            # Create menu
-            self._menu = NSMenu.alloc().init()
+            # Create menu with responsive keyboard handling
+            self._menu = ResponsiveMenu.alloc().init()
+            self._menu.setAutoenablesItems_(False)
+            self._menu.setDelegate_(self._delegate)
 
             # Flag to track if default items have been added
             self._default_items_added = False

@@ -19,6 +19,7 @@ docs/conf.py
 docs/examples.rst
 docs/index.rst
 docs/installation.rst
+docs/packaging.rst
 docs/quickstart.rst
 docs/api/controls.rst
 docs/api/core.rst
@@ -33,6 +34,10 @@ examples/sfsymbol_rendering_modes.py
 examples/submenu_demo.py
 examples/timer.py
 examples/yt.py
+examples/packaging_test/screentime.py
+examples/packaging_test/setup_screentime.py
+examples/packaging_test/dist/ScreenTime.app/Contents/Resources/__boot__.py
+examples/packaging_test/dist/ScreenTime.app/Contents/Resources/site.py
 stackitui.egg-info/PKG-INFO
 stackitui.egg-info/SOURCES.txt
 stackitui.egg-info/dependency_links.txt

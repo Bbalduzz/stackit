@@ -384,3 +384,21 @@ class StackAppDelegate(NSObject):
         """Programmatically show the menu."""
         if self._status_item:
             self._status_item.button().performClick_(None)
+
+    # Menu Delegate Methods (NSMenuDelegate)
+    def menuWillOpen_(self, menu):
+        """Called when menu is about to open."""
+        # Keep menu responsive by ensuring it remains key
+        pass
+
+    def menuDidClose_(self, menu):
+        """Called when menu closes."""
+        # Release any first responders when menu closes
+        NSApplication.sharedApplication().keyWindow().makeFirstResponder_(None)
+
+    def confinementRectForMenu_onScreen_(self, menu, screen):
+        """Return the confinement rect for the menu.
+
+        This helps prevent the menu from moving when controls are interacted with.
+        """
+        return screen.visibleFrame() if screen else AppKit.NSZeroRect

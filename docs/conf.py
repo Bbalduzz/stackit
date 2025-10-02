@@ -8,13 +8,13 @@ import revitron_sphinx_theme
 
 # -- Project information -----------------------------------------------------
 project = 'stackit'
-copyright = '2025, stackit contributors'
+copyright = '2025, Edoardo Balducci'
 author = 'Edoardo Balducci'
 slug = re.sub(r'\W+', '-', project.lower())
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.0'
-version = '0.2.0'
+# release = '0.2.0'
+# version = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -53,7 +53,6 @@ html_context = {
             {'title': 'Documentation', 'url': 'installation.html'},
             {'title': 'Quick Start', 'url': 'quickstart.html'},
             {'title': 'API Reference', 'url': 'api/index.html'},
-            {'title': 'GitHub', 'url': 'https://github.com/bbalduzz/stackit'}
         ]
     }
 }
@@ -66,6 +65,7 @@ htmlhelp_basename = slug
 # Only use static files if they exist
 if os.path.exists(os.path.join(os.path.dirname(__file__), '_static')):
     html_static_path = ['_static']
+    html_css_files = ['custom.css']
 else:
     html_static_path = []
 

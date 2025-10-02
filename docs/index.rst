@@ -6,12 +6,14 @@ StacKit
 
 .. container:: .large
 
-   A modern, powerful framework for creating beautiful macOS menu bar applications with rich custom layouts. Build native macOS status bar apps with SwiftUI-inspired layout patterns (hstack/vstack), extensive UI controls, and full SF Symbols support.
+   A modern, powerful framework for creating beautiful macOS menu bar applications with rich custom layouts. Build native macOS status bar apps with SwiftUI-inspired layout patterns, extensive UI controls, and full SF Symbols support.
 
 .. container:: .buttons
 
    `Docs <installation.html>`_
    `GitHub <https://github.com/bbalduzz/stackit>`_
+
+.. image :: https://img.shields.io/pypi/v/stackitui?label=Release&style=flat-square&labelColor=292b2e&color=292b2e
 
 .. toctree::
    :caption: Getting Started
@@ -20,6 +22,7 @@ StacKit
 
    installation
    quickstart
+   packaging
 
 .. toctree::
    :caption: API Reference
