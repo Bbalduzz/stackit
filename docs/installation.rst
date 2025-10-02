@@ -13,11 +13,13 @@ Install from source
 
 Clone the repository and install::
 
-    git clone https://github.com/yourusername/stackit.git
+    git clone https://github.com/bbalduzz/stackit.git
     cd stackit
     pip install -e .
 
-Or simply copy the ``stackit`` directory into your project.
+Or simply install it with pypi::
+
+    ``pip install stackitui``
 
 Dependencies
 ------------
