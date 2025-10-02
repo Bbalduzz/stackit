@@ -3,7 +3,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-import revitron_sphinx_theme
 
 # -- Project information -----------------------------------------------------
 project = 'stackit'
@@ -21,7 +20,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-    "revitron_sphinx_theme",
 ]
 
 templates_path = ['_templates']
