@@ -144,9 +144,12 @@ class MenuItem(NSObject):
 
     Custom layout menu items:
         MenuItem(layout=stackit.hstack([...]))
+
+    Menu items with submenus:
+        MenuItem(title="Settings", submenu=[MenuItem(...), MenuItem(...)])
     """
 
-    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None):
+    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None, submenu=None):
         # Create the instance using Objective-C allocation
         instance = cls.alloc().init()
         # Initialize it
@@ -158,8 +161,8 @@ class MenuItem(NSObject):
         # Set target to our delegate class
         instance._menuitem.setTarget_(StackAppDelegate)
 
-        # Register this menu item for callbacks
-        if callback:
+        # Register this menu item for callbacks (only if no submenu)
+        if callback and submenu is None:
             StackAppDelegate.register_callback(instance._menuitem, instance, callback)
         if key_equivalent:
             instance._menuitem.setKeyEquivalent_(key_equivalent)
@@ -168,10 +171,15 @@ class MenuItem(NSObject):
         instance._root_stack = None
         instance._padding = (6.0, 12.0, 6.0, 12.0)  # top, leading, bottom, trailing
         instance._is_simple = title is not None and layout is None
+        instance._submenu = None
 
         # Set layout if provided (only for custom menu items)
         if layout is not None:
             instance.set_layout(layout)
+
+        # Set submenu if provided
+        if submenu is not None:
+            instance.set_submenu(submenu)
 
         return instance
 
@@ -221,6 +229,38 @@ class MenuItem(NSObject):
         self._callback = callback
         if callback:
             StackAppDelegate.register_callback(self._menuitem, self, callback)
+
+    @objc.python_method
+    def set_submenu(self, items):
+        """Set a submenu for this menu item.
+
+        Args:
+            items: List of MenuItem objects or 'separator' strings
+
+        Example:
+            submenu_items = [
+                MenuItem(title="Option 1", callback=func1),
+                'separator',
+                MenuItem(title="Option 2", callback=func2)
+            ]
+            item.set_submenu(submenu_items)
+        """
+        # Create a new NSMenu for the submenu
+        submenu = NSMenu.alloc().init()
+        submenu.setAutoenablesItems_(False)
+
+        # Add items to submenu
+        for item in items:
+            if isinstance(item, str) and item.lower() == 'separator':
+                submenu.addItem_(NSMenuItem.separatorItem())
+            elif isinstance(item, MenuItem):
+                submenu.addItem_(item._menuitem)
+            else:
+                NSLog(f"Warning: Invalid submenu item type: {type(item)}")
+
+        # Attach submenu to this menu item
+        self._menuitem.setSubmenu_(submenu)
+        self._submenu = submenu
 
     @objc.python_method
     def menuitem(self):

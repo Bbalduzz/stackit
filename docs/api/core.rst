@@ -55,20 +55,46 @@ Menu items can be either simple (title-based) or custom (layout-based).
    item = stackit.MenuItem()
    item.set_layout(my_layout)
 
+**Menu Items with Submenus:**
+
+.. code-block:: python
+
+   # Create submenu items
+   submenu_items = [
+       stackit.MenuItem(title="Option 1", callback=func1),
+       'separator',
+       stackit.MenuItem(title="Option 2", callback=func2)
+   ]
+
+   # Create menu item with submenu
+   item = stackit.MenuItem(
+       title="Settings ▶",
+       submenu=submenu_items
+   )
+   app.add(item)
+
+   # Nested submenus
+   nested = [
+       stackit.MenuItem(title="Sub-option A", callback=func_a),
+       stackit.MenuItem(title="More ▶", submenu=[...])  # Nest another submenu
+   ]
+
 **Parameters:**
 
 * ``title`` - Optional title text for simple menu items (mutually exclusive with layout)
 * ``layout`` - Optional layout to display (StackView instance, mutually exclusive with title)
 * ``callback`` - Optional callback function for menu item clicks
 * ``key_equivalent`` - Optional keyboard shortcut (e.g., "q" for ⌘Q, "," for ⌘,)
+* ``submenu`` - Optional list of MenuItem objects or 'separator' strings to create a submenu
 
 **Methods:**
 
 * ``set_layout(stack_view)`` - Set or update the layout for the menu item
 * ``set_callback(callback)`` - Set or update the callback function
+* ``set_submenu(items)`` - Set or update submenu items (list of MenuItem or 'separator')
 * ``menuitem()`` - Get the underlying NSMenuItem
 
-**Note:** Use ``title`` for simple text menu items, or ``layout`` for rich custom layouts. Don't use both together.
+**Note:** Use ``title`` for simple text menu items, or ``layout`` for rich custom layouts. Don't use both together. When using ``submenu``, the ``callback`` parameter is ignored.
 
 Layout Functions
 ----------------

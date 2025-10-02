@@ -152,6 +152,14 @@ item = stackit.MenuItem(
     callback=open_prefs,
     key_equivalent=","  # ⌘,
 )
+
+# Option 4: Menu item with submenu
+submenu_items = [
+    stackit.MenuItem(title="Option 1", callback=func1),
+    'separator',
+    stackit.MenuItem(title="Option 2", callback=func2)
+]
+item = stackit.MenuItem(title="Settings ▶", submenu=submenu_items)
 ```
 
 ### 3. Layouts - hstack & vstack
