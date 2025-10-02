@@ -34,10 +34,8 @@ ENV/
 .coverage
 htmlcov/
 
-# Documentation builds
+# Documentation builds (but keep docs/ source files)
 docs/_build/
-docs/_static/
-docs/_templates/
 
 CLAUDE.md
 .claude
