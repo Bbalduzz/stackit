@@ -1,5 +1,6 @@
 # Configuration file for the Sphinx documentation builder.
 
+import revitron_sphinx_theme
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
@@ -20,6 +21,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
+     'revitron_sphinx_theme',
 ]
 
 templates_path = ['_templates']
