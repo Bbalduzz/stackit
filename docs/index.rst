@@ -1,4 +1,4 @@
-.. image:: stackit-logo.png
+.. image:: stackit-logo-white.png
 
 StacKit
 =======
