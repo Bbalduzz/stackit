@@ -1,14 +1,16 @@
 # Configuration file for the Sphinx documentation builder.
 
-import revitron_sphinx_theme
 import os
 import sys
+import re
 sys.path.insert(0, os.path.abspath('..'))
+import revitron_sphinx_theme
 
 # -- Project information -----------------------------------------------------
 project = 'stackit'
 copyright = '2025, stackit contributors'
 author = 'Edoardo Balducci'
+slug = re.sub(r'\W+', '-', project.lower())
 
 # The full version, including alpha/beta/rc tags
 release = '0.2.0'
@@ -21,15 +23,37 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-     'revitron_sphinx_theme',
+    'revitron_sphinx_theme',
+    'autodocsumm'
 ]
+
+autodoc_default_options = {
+    'autosummary': True
+}
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+master_doc = 'index'
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "revitron_sphinx_theme"
-html_static_path = ['_static']
+
+# Theme options
+html_theme_options = {
+    'navigation_depth': 5,
+    'github_url': 'https://github.com/bbalduzz/stackit',
+    'color_scheme': 'dark'
+}
+
+html_title = 'StackIt Documentation'
+html_show_sourcelink = True
+htmlhelp_basename = slug
+
+# Only use static files if they exist
+if os.path.exists(os.path.join(os.path.dirname(__file__), '_static')):
+    html_static_path = ['_static']
+else:
+    html_static_path = []
 
 # -- Extension configuration -------------------------------------------------
 # Napoleon settings
