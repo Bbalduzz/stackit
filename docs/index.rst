@@ -1,4 +1,5 @@
 .. image:: stackit-logo-white.png
+   :width: 110px
 
 StacKit
 =======
