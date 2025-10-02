@@ -14,44 +14,55 @@ Creating SF Symbols
 .. code-block:: python
 
    # Basic symbol
-   icon = stackit.SFSymbol.create("star.fill")
+   icon = stackit.SFSymbol("star.fill")
 
-   # With size and weight
-   icon = stackit.SFSymbol.create("star.fill", size=20, weight="bold")
+   # With point size and weight
+   icon = stackit.SFSymbol("star.fill", point_size=20, weight="bold")
 
-   # With color
-   icon = stackit.SFSymbol.create("heart.fill", size=16, color="red")
+   # With color (hex or RGB tuple)
+   icon = stackit.SFSymbol("heart.fill", color="#FF0000")
+   icon = stackit.SFSymbol("heart.fill", color=(255, 0, 0))
 
    # With hierarchical rendering
-   icon = stackit.SFSymbol.create(
+   icon = stackit.SFSymbol(
        "gear",
-       size=24,
+       point_size=24,
        weight="semibold",
-       rendering_mode="hierarchical"
+       rendering="hierarchical",
+       color="#0000FF"
    )
 
    # Multicolor symbols
-   icon = stackit.SFSymbol.create(
+   icon = stackit.SFSymbol(
        "heart.circle.fill",
-       size=32,
-       rendering_mode="multicolor"
+       point_size=32,
+       rendering="multicolor"
    )
 
-create()
-~~~~~~~~
+   # Palette mode with multiple colors
+   icon = stackit.SFSymbol(
+       "circle.hexagongrid.circle",
+       point_size=24,
+       rendering="palette",
+       palette_colors=["#FF0000", "#00FF00", "#0000FF"]
+   )
+
+__init__()
+~~~~~~~~~~
 
 Create an SF Symbol image.
 
 **Parameters:**
 
-* ``symbol_name`` (str) - SF Symbol name (e.g., "star.fill", "heart", "gear")
-* ``size`` (int) - Point size (default: 13)
-* ``weight`` (str) - Font weight (default: "regular")
-* ``scale`` (str) - Symbol scale: "small", "medium", "large" (default: "medium")
-* ``rendering_mode`` (str) - Rendering mode (default: "automatic")
-* ``color`` (str or NSColor) - Primary color (optional)
-* ``secondary_color`` (str or NSColor) - Secondary color for palette mode (optional)
-* ``tertiary_color`` (str or NSColor) - Tertiary color for palette mode (optional)
+* ``name`` (str) - SF Symbol name (e.g., "star.fill", "heart", "gear")
+* ``rendering`` (str) - Rendering mode: "automatic", "monochrome", "hierarchical", "palette", "multicolor" (default: "automatic")
+* ``color`` (str or tuple) - Primary color as hex string "#FFFFFF" or RGB tuple (255, 255, 255) or RGBA (255, 255, 255, 255) (default: "#ffffff")
+* ``palette_colors`` (list) - List of colors for palette mode (e.g., ["#FF0000", "#00FF00", "#0000FF"])
+* ``point_size`` (float) - Point size for the symbol (optional)
+* ``weight`` (str) - Font weight (default: None)
+* ``scale`` (str) - Symbol scale: "small", "medium", "large" (optional)
+* ``text_style`` (str) - Text style: "body", "caption1", "headline", "title1", etc. (optional)
+* ``accessibility_description`` (str) - Accessibility description (default: auto-generated from name)
 
 Weight Options
 ~~~~~~~~~~~~~~
@@ -117,36 +128,36 @@ Examples
 .. code-block:: python
 
    # Success
-   success = stackit.SFSymbol.create("checkmark.circle.fill", color="green")
+   success = stackit.SFSymbol("checkmark.circle.fill", color="#00FF00")
 
    # Warning
-   warning = stackit.SFSymbol.create("exclamationmark.triangle.fill", color="orange")
+   warning = stackit.SFSymbol("exclamationmark.triangle.fill", color="#FFA500")
 
    # Error
-   error = stackit.SFSymbol.create("xmark.circle.fill", color="red")
+   error = stackit.SFSymbol("xmark.circle.fill", color="#FF0000")
 
 **Network Status:**
 
 .. code-block:: python
 
    # Connected
-   wifi_on = stackit.SFSymbol.create("wifi", size=16)
+   wifi_on = stackit.SFSymbol("wifi", point_size=16)
 
    # Disconnected
-   wifi_off = stackit.SFSymbol.create("wifi.slash", size=16, color="red")
+   wifi_off = stackit.SFSymbol("wifi.slash", point_size=16, color="#FF0000")
 
 **System Icons:**
 
 .. code-block:: python
 
    # Settings
-   settings = stackit.SFSymbol.create("gear", size=20)
+   settings = stackit.SFSymbol("gear", point_size=20)
 
    # Download
-   download = stackit.SFSymbol.create("arrow.down.circle", size=18)
+   download = stackit.SFSymbol("arrow.down.circle", point_size=18)
 
    # Upload
-   upload = stackit.SFSymbol.create("arrow.up.circle", size=18)
+   upload = stackit.SFSymbol("arrow.up.circle", point_size=18)
 
 Finding SF Symbols
 ~~~~~~~~~~~~~~~~~~

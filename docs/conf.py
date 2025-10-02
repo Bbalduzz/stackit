@@ -42,6 +42,7 @@ html_theme = "revitron_sphinx_theme"
 html_theme_options = {
     'navigation_depth': 5,
     'github_url': 'https://github.com/bbalduzz/stackit',
+    'logo_mobile': 'stackit-logo-dark.png',
     'color_scheme': 'light'
 }
 
@@ -57,8 +58,8 @@ html_context = {
     }
 }
 
-html_logo = '_static/stackit-logo-dark.png'
-html_title = ''  # Empty to hide text, show only logo
+html_logo = 'stackit-logo-dark.png'
+html_title = 'StaKit'  # Empty to hide text, show only logo
 html_show_sourcelink = True
 htmlhelp_basename = slug
 
