@@ -5,17 +5,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDisplayName</key>
-	<string>ScreenTime Tracker</string>
+	<string>YouTube Downloader</string>
 	<key>CFBundleExecutable</key>
-	<string>ScreenTime</string>
+	<string>YouTubeDL</string>
 	<key>CFBundleIconFile</key>
-	<string>ScreenTime</string>
+	<string>YouTubeDL</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.stackit.screentime</string>
+	<string>com.stackit.youtubedl</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>ScreenTime</string>
+	<string>YouTubeDL</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -26,12 +26,8 @@
 	<string>1.0.0</string>
 	<key>LSHasLocalizedDisplayName</key>
 	<false/>
-	<key>LSMinimumSystemVersion</key>
-	<string>10.15.0</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>ScreenTime needs to read app usage data.</string>
 	<key>NSAppleScriptEnabled</key>
 	<false/>
 	<key>NSHighResolutionCapable</key>
@@ -44,8 +40,6 @@
 	<string>NSApplication</string>
 	<key>NSRequiresAquaSystemAppearance</key>
 	<false/>
-	<key>NSSystemAdministrationUsageDescription</key>
-	<string>ScreenTime needs Full Disk Access to read screen time data.</string>
 	<key>PyMainFileNames</key>
 	<array>
 		<string>__boot__</string>

@@ -94,7 +94,7 @@ def _path_inject(paths):
     sys.path[:0] = paths
 
 
-_path_inject(['/Users/edoardobalducci/Documents/work/stackit/examples/packaging_test'])
+_path_inject(['/Users/edoardobalducci/Documents/work/stackit/examples/ytdl_packaging'])
 
 
 import re
@@ -147,7 +147,7 @@ def _run():
     exec(compile(source, script, "exec"), globals(), globals())
 
 
-DEFAULT_SCRIPT='/Users/edoardobalducci/Documents/work/stackit/examples/packaging_test/screentime.py'
+DEFAULT_SCRIPT='/Users/edoardobalducci/Documents/work/stackit/examples/ytdl_packaging/yt.py'
 SCRIPT_MAP={}
 try:
     _run()
