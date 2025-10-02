@@ -1,6 +1,8 @@
 <h1 align="center">
-  <p>StackIt</p>
-  <img width="100%" align="center" src="https://github.com/user-attachments/assets/28741adf-c190-4292-9675-c9e8a2861b09" alt="logo">
+  <span>
+      <img width="15%" align="center" src="/docs/stackit-logo-white.png" alt="logo">
+      <p>StackIt</p>
+  </span>
 </h1>
 
 <p align="center">
@@ -15,23 +17,24 @@ StackIt provides an elegant Python API for building native macOS status bar apps
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License">
 </p>
 
+<img width="100%" align="center" src="https://github.com/user-attachments/assets/28741adf-c190-4292-9675-c9e8a2861b09" alt="logo">
+
+
+## Key Features
+
+- **Rich Layouts** - SwiftUI-inspired `hstack`/`vstack` for flexible, declarative layouts
+- **Extensive Controls** - Labels, buttons, sliders, progress bars, text fields, checkboxes, date pickers, charts, and more
+- **SF Symbols** - Full support for Apple's SF Symbols with all rendering modes (hierarchical, palette, multicolor)
+- **Native Performance** - Built directly on AppKit using PyObjC, zero external dependencies
+- **Lightweight** - Minimal footprint, just PyObjC required (usually pre-installed)
+- **Dynamic Updates** - Real-time UI updates with timers and `app.update()`
+- **Preferences** - Built-in preference storage and retrieval
+- **Notifications** - macOS notification support
+- **Modern API** - Clean, Pythonic interface with direct layout passing
+
 ---
 
-## ✨ Key Features
-
-- **🎨 Rich Layouts** - SwiftUI-inspired `hstack`/`vstack` for flexible, declarative layouts
-- **🎛️ Extensive Controls** - Labels, buttons, sliders, progress bars, text fields, checkboxes, date pickers, charts, and more
-- **🔣 SF Symbols** - Full support for Apple's SF Symbols with all rendering modes (hierarchical, palette, multicolor)
-- **⚡ Native Performance** - Built directly on AppKit using PyObjC, zero external dependencies
-- **🪶 Lightweight** - Minimal footprint, just PyObjC required (usually pre-installed)
-- **🔄 Dynamic Updates** - Real-time UI updates with timers and `app.update()`
-- **💾 Preferences** - Built-in preference storage and retrieval
-- **🔔 Notifications** - macOS notification support
-- **📱 Modern API** - Clean, Pythonic interface with direct layout passing
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -104,7 +107,7 @@ app.run()
 
 ---
 
-## 📚 Core Concepts
+## Core Concepts
 
 ### 1. StackApp - Your Application
 
@@ -320,7 +323,7 @@ stackit.quit_application()
 
 ---
 
-## 🎯 Real-World Examples
+## Real-World Examples
 
 ### System Monitor
 
@@ -516,7 +519,7 @@ stackit/
 
 ---
 
-## 🎨 Design Philosophy
+## Design Philosophy
 
 1. **Native First** - Built directly on AppKit for true native macOS integration
 2. **Modern API** - SwiftUI-inspired layouts (hstack/vstack) with Pythonic syntax
@@ -526,19 +529,19 @@ stackit/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit issues, fork the repository, and create pull requests.
 
----
+--
 
-## 📄 License
+## License
 
 MIT License - see LICENSE file for details
 
 ---
 
-## 🌟 Use Cases
+## Use Cases
 
 StackIt is perfect for:
 
@@ -554,19 +557,20 @@ StackIt is perfect for:
 
 ## 🔗 Comparison with rumps
 
-**StackIt is NOT based on rumps.** It's a completely standalone framework with:
+This package has been created to fill the void that other packages (like rumps) left: no customisation and very limiting layout options.
+Although rumps has been an inspiration, **StackIt is NOT based on rumps.** It's a completely standalone framework with:
 
-- ✅ No rumps dependency - built directly on PyObjC/AppKit
-- ✅ Rich custom layouts - hstack/vstack for complex UIs
-- ✅ More controls - extensive UI component library
-- ✅ Better SF Symbols support - full customization
-- ✅ Modern API design - declarative, composable layouts
+- No rumps dependency - built directly on PyObjC/AppKit
+- Rich custom layouts - hstack/vstack for complex UIs
+- More controls - extensive UI component library
+- Better SF Symbols support - full customization
+- Modern API design - declarative, composable layouts
 
-If you're looking for a simple, rumps-like API, rumps is great. If you need rich, custom layouts with advanced UI controls, StackIt is for you.
+If you're looking for a simple, rumps-like API, rumps is great. If you need rich, custom layouts with advanced UI controls, StacKit is for you.
 
 ---
 
-## 💡 Tips & Tricks
+## Tips & Tricks
 
 ### Dynamic Updates
 
