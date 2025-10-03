@@ -62,13 +62,20 @@ class YTDLPApp(stackit.StackApp):
             placeholder="Paste YouTube URL here",
             target=self,
             action="processURL:",
-            size=(300, 30)
+            size=(310, 30)
         )
 
         # Preview section - starts with placeholder label
-        self.preview_container = stackit.vstack([
-            stackit.label("Enter a YouTube URL to preview", font_size=10, width=200, color="gray")
-        ], spacing=5)
+        self.preview_container = stackit.vstack(
+            [
+                stackit.hstack([
+                    stackit.image(stackit.SFSymbol("link.badge.plus", rendering="hierarchical"), width=18, height=18),
+                    stackit.label("Enter a YouTube URL to preview", font_size=11, color="#AAAAAA"),
+                    stackit.spacer()
+                ], spacing=10)
+            ], 
+            spacing=5
+        )
 
         # Status section - for progress bar or completion messages
         self.status_container = stackit.vstack([], spacing=30)
@@ -277,6 +284,9 @@ class YTDLPApp(stackit.StackApp):
         title = self.video_info.get('title', 'Unknown Title')
         channel = self.video_info.get('uploader', 'Unknown Channel')
         duration = self.video_info.get('duration', 0)
+        views = self.video_info.get('views', 0)
+
+        views_str = f"{views:,}" if views else "N/A"
 
         logging.info(f"🎬 Updating preview - Title: {title}")
         logging.info(f"👤 Channel: {channel}")
@@ -295,8 +305,10 @@ class YTDLPApp(stackit.StackApp):
                 stackit.label(title, font_size=11, width=180, bold=True, wraps=True),
                 stackit.hstack([
                     stackit.label(channel, font_size=9, color="gray"),
-                    stackit.label("-", font_size=9),
-                    stackit.label(duration_str, font_size=9, color="gray")
+                    stackit.label("•", font_size=9, color="gray"),
+                    stackit.label(duration_str, font_size=9, color="gray"),
+                    stackit.label("•", font_size=9, color="gray"),
+                    stackit.label(f"{views_str} views", font_size=9, color="gray")
                 ])
             ])
         ])

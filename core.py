@@ -7,10 +7,31 @@ Core StackIt components - isolated StackMenuItem implementation.
 
 import Foundation
 import AppKit
-from Foundation import NSDate, NSTimer, NSRunLoop, NSDefaultRunLoopMode, NSLog, NSObject, NSMakeRect, NSMakeSize
+from Foundation import (
+    NSDate,
+    NSTimer,
+    NSRunLoop,
+    NSDefaultRunLoopMode,
+    NSLog,
+    NSObject,
+    NSMakeRect,
+    NSMakeSize,
+)
 from AppKit import (
-    NSApplication, NSStatusBar, NSMenu, NSMenuItem, NSAlert, NSView, NSStackView,
-    NSButton, NSImageView, NSTextField, NSFont, NSColor, NSImage, NSApp
+    NSApplication,
+    NSStatusBar,
+    NSMenu,
+    NSMenuItem,
+    NSAlert,
+    NSView,
+    NSStackView,
+    NSButton,
+    NSImageView,
+    NSTextField,
+    NSFont,
+    NSColor,
+    NSImage,
+    NSApp,
 )
 from .sfsymbol import SFSymbol
 from .delegate import StackAppDelegate
@@ -25,6 +46,7 @@ import traceback
 # Global state for the application
 _STACK_APP_INSTANCE = None
 _TIMERS = weakref.WeakKeyDictionary()
+
 
 class ClickableView(NSView):
     """Custom NSView that forwards clicks to our callback system and manages focus properly."""
@@ -103,9 +125,17 @@ def hstack(controls=None, alignment=None, spacing=8.0):
     Returns:
         StackView configured for horizontal layout
     """
-    stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationHorizontal)
+    alignments_map = {
+        "center_x": AppKit.NSLayoutAttributeCenterX,
+        "center_y": AppKit.NSLayoutAttributeCenterY,
+        "leading": AppKit.NSLayoutAttributeLeading,
+        "trailing": AppKit.NSLayoutAttributeTrailing,
+    }
+    stack = StackView.alloc().initWithOrientation_(
+        AppKit.NSUserInterfaceLayoutOrientationHorizontal
+    )
     if alignment is not None:
-        stack.setAlignment_(alignment)
+        stack.setAlignment_(alignments_map[alignment])
     else:
         stack.setAlignment_(AppKit.NSLayoutAttributeCenterY)
     stack.setSpacing_(spacing)
@@ -154,7 +184,9 @@ def vstack(controls=None, alignment=None, spacing=8.0):
     Returns:
         StackView configured for vertical layout
     """
-    stack = StackView.alloc().initWithOrientation_(AppKit.NSUserInterfaceLayoutOrientationVertical)
+    stack = StackView.alloc().initWithOrientation_(
+        AppKit.NSUserInterfaceLayoutOrientationVertical
+    )
     if alignment is not None:
         stack.setAlignment_(alignment)
     else:
@@ -180,7 +212,15 @@ class MenuItem(NSObject):
         MenuItem(title="Settings", submenu=[MenuItem(...), MenuItem(...)])
     """
 
-    def __new__(cls, title=None, layout=None, callback=None, key_equivalent=None, submenu=None, badge=None):
+    def __new__(
+        cls,
+        title=None,
+        layout=None,
+        callback=None,
+        key_equivalent=None,
+        submenu=None,
+        badge=None,
+    ):
         # Create the instance using Objective-C allocation
         instance = cls.alloc().init()
         # Initialize it
@@ -219,14 +259,15 @@ class MenuItem(NSObject):
 
         return instance
 
-
     @objc.python_method
     def _setup_custom_view(self):
         """Initialize the custom view for this menu item if not already done."""
         if self._custom_view is None:
             # Use ClickableView if we have a callback, otherwise regular NSView
             if self._callback:
-                self._custom_view = ClickableView.alloc().initWithMenuItem_(self._menuitem)
+                self._custom_view = ClickableView.alloc().initWithMenuItem_(
+                    self._menuitem
+                )
             else:
                 self._custom_view = NSView.alloc().init()
                 self._custom_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -248,15 +289,23 @@ class MenuItem(NSObject):
         # Add constraints with proper macOS menu item padding
         padding_top, padding_leading, padding_bottom, padding_trailing = self._padding
 
-        stack_view.topAnchor().constraintEqualToAnchor_constant_(self._custom_view.topAnchor(), padding_top).setActive_(True)
-        stack_view.bottomAnchor().constraintEqualToAnchor_constant_(self._custom_view.bottomAnchor(), -padding_bottom).setActive_(True)
-        stack_view.leadingAnchor().constraintEqualToAnchor_constant_(self._custom_view.leadingAnchor(), padding_leading).setActive_(True)
-        stack_view.trailingAnchor().constraintEqualToAnchor_constant_(self._custom_view.trailingAnchor(), -padding_trailing).setActive_(True)
+        stack_view.topAnchor().constraintEqualToAnchor_constant_(
+            self._custom_view.topAnchor(), padding_top
+        ).setActive_(True)
+        stack_view.bottomAnchor().constraintEqualToAnchor_constant_(
+            self._custom_view.bottomAnchor(), -padding_bottom
+        ).setActive_(True)
+        stack_view.leadingAnchor().constraintEqualToAnchor_constant_(
+            self._custom_view.leadingAnchor(), padding_leading
+        ).setActive_(True)
+        stack_view.trailingAnchor().constraintEqualToAnchor_constant_(
+            self._custom_view.trailingAnchor(), -padding_trailing
+        ).setActive_(True)
 
         # Force the view to update its layout and redraw
         self._custom_view.setNeedsLayout_(True)
         self._custom_view.setNeedsDisplay_(True)
-        if hasattr(self._custom_view, 'layoutSubtreeIfNeeded'):
+        if hasattr(self._custom_view, "layoutSubtreeIfNeeded"):
             self._custom_view.layoutSubtreeIfNeeded()
 
     @objc.python_method
@@ -287,7 +336,7 @@ class MenuItem(NSObject):
 
         # Add items to submenu
         for item in items:
-            if isinstance(item, str) and item.lower() == 'separator':
+            if isinstance(item, str) and item.lower() == "separator":
                 submenu.addItem_(NSMenuItem.separatorItem())
             elif isinstance(item, MenuItem):
                 submenu.addItem_(item._menuitem)
@@ -315,7 +364,7 @@ class MenuItem(NSObject):
             item.set_badge(None)                # Removes badge
         """
         # Check if NSMenuItemBadge is available (macOS 14.0+)
-        if not hasattr(AppKit, 'NSMenuItemBadge'):
+        if not hasattr(AppKit, "NSMenuItemBadge"):
             NSLog("Warning: NSMenuItemBadge requires macOS 14.0 or later")
             return
 
@@ -328,16 +377,18 @@ class MenuItem(NSObject):
 
             # Map badge type string to NSMenuItemBadgeType constant
             if isinstance(badge_type, str):
-                badge_type_lower = badge_type.lower().replace('-', '').replace('_', '')
+                badge_type_lower = badge_type.lower().replace("-", "").replace("_", "")
 
-                if badge_type_lower in ['updates', 'update']:
+                if badge_type_lower in ["updates", "update"]:
                     badge_type_enum = AppKit.NSMenuItemBadgeTypeUpdates
-                elif badge_type_lower in ['newitems', 'new']:
+                elif badge_type_lower in ["newitems", "new"]:
                     badge_type_enum = AppKit.NSMenuItemBadgeTypeNewItems
-                elif badge_type_lower in ['alerts', 'alert']:
+                elif badge_type_lower in ["alerts", "alert"]:
                     badge_type_enum = AppKit.NSMenuItemBadgeTypeAlerts
                 else:
-                    NSLog(f"Warning: Unknown badge type '{badge_type}'. Use 'updates', 'new-items', or 'alerts'")
+                    NSLog(
+                        f"Warning: Unknown badge type '{badge_type}'. Use 'updates', 'new-items', or 'alerts'"
+                    )
                     return
             else:
                 # Assume it's already a badge type constant
@@ -345,13 +396,17 @@ class MenuItem(NSObject):
 
             # Create badge with count if specified, otherwise use type-only initializer
             if count is not None:
-                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(count, badge_type_enum)
+                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(
+                    count, badge_type_enum
+                )
             else:
                 # Use count 0 for default badge appearance (no number shown)
-                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(0, badge_type_enum)
+                badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(
+                    0, badge_type_enum
+                )
 
             # Set the badge on the menu item
-            if hasattr(self._menuitem, 'setBadge_'):
+            if hasattr(self._menuitem, "setBadge_"):
                 self._menuitem.setBadge_(badge)
                 self._badge = badge
             else:
@@ -363,6 +418,7 @@ class MenuItem(NSObject):
     def menuitem(self):
         """Get the underlying NSMenuItem."""
         return self._menuitem
+
 
 class _StackApp(NSObject):
     """Minimal statusbar application using only StackMenuItem."""
@@ -427,7 +483,9 @@ class _StackApp(NSObject):
         self.add_separator()
 
         # Create and add Quit button with ⌘Q shortcut (simple menu item)
-        quit_item = MenuItem(title="Quit", callback=self._default_quit_callback, key_equivalent="q")
+        quit_item = MenuItem(
+            title="Quit", callback=self._default_quit_callback, key_equivalent="q"
+        )
         self.add(quit_item)
 
     @objc.python_method
@@ -497,7 +555,6 @@ class _StackApp(NSObject):
             MenuItem instance or None if not found
         """
         return self._menu_items.get(key)
-
 
     @objc.python_method
     def run(self):
@@ -599,4 +656,3 @@ class StackApp(_StackApp):
         """
         # Initialize using the Objective-C init method
         objc.super(StackApp, self).initWithTitle_icon_(title, icon)
-

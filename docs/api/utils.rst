@@ -215,6 +215,56 @@ Execute a function repeatedly (convenience wrapper for repeating timer).
 
 **Note:** When updating menu layouts in timer callbacks, call ``app.update()`` to force the menu to redraw.
 
+Color Utilities
+---------------
+
+parse_color()
+~~~~~~~~~~~~~
+
+Parse colors from various formats into NSColor objects.
+
+.. code-block:: python
+
+   from stackit import parse_color
+
+   # Hex color strings
+   red = parse_color("#FF0000")           # RGB hex
+   red_alpha = parse_color("#FF0000AA")   # RGBA hex with alpha
+
+   # RGB tuples (auto-normalized from 0-255 or 0.0-1.0)
+   green = parse_color((0, 255, 0))       # 0-255 range
+   green2 = parse_color((0.0, 1.0, 0.0))  # 0.0-1.0 range
+
+   # RGBA tuples
+   blue_alpha = parse_color((0, 0, 255, 128))  # RGB + alpha (0-255)
+
+   # NSColor objects (passed through unchanged)
+   system_red = parse_color(NSColor.systemRedColor())
+
+   # Use with controls
+   label = stackit.label("Hello", color=parse_color("#FF0000"))
+   chart = stackit.line_chart(points=[1,2,3], color=(255, 0, 0))
+
+   # With default fallback
+   color = parse_color(invalid_color, default=NSColor.labelColor())
+
+**Parameters:**
+
+* ``color`` - Color in various formats:
+
+  * NSColor object (returned as-is)
+  * Hex string: ``"#RRGGBB"`` or ``"#RRGGBBAA"``
+  * RGB tuple: ``(r, g, b)`` with values 0-255 or 0.0-1.0
+  * RGBA tuple: ``(r, g, b, a)`` with values 0-255 or 0.0-1.0
+
+* ``default`` (NSColor) - Default color to return if parsing fails (default: ``NSColor.labelColor()``)
+
+**Returns:**
+
+* NSColor object
+
+**Note:** All color parameters in StackIt controls use this utility internally for consistent color parsing. Values in the 0-255 range are automatically normalized to 0.0-1.0 for NSColor.
+
 Application Control
 -------------------
 

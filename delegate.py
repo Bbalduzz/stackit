@@ -48,7 +48,7 @@ class StackAppDelegate(NSObject):
         self._initialize_status_bar()
 
         # Emit custom event if StackApp wants to handle it
-        if hasattr(self._stack_app, '_on_ready'):
+        if hasattr(self._stack_app, "_on_ready"):
             try:
                 self._stack_app._on_ready()
             except Exception as e:
@@ -62,7 +62,7 @@ class StackAppDelegate(NSObject):
         self._cleanup_workspace_notifications()
 
         # Emit custom event if StackApp wants to handle it
-        if hasattr(self._stack_app, '_on_quit'):
+        if hasattr(self._stack_app, "_on_quit"):
             try:
                 self._stack_app._on_quit()
             except Exception as e:
@@ -77,13 +77,15 @@ class StackAppDelegate(NSObject):
         """Initialize the status bar item."""
         if not self._status_item and self._stack_app:
             status_bar = NSStatusBar.systemStatusBar()
-            self._status_item = status_bar.statusItemWithLength_(AppKit.NSVariableStatusItemLength)
+            self._status_item = status_bar.statusItemWithLength_(
+                AppKit.NSVariableStatusItemLength
+            )
 
             # Set title and icon from StackApp
             self._update_status_bar_appearance()
 
             # Set menu
-            if hasattr(self._stack_app, '_menu'):
+            if hasattr(self._stack_app, "_menu"):
                 self._status_item.setMenu_(self._stack_app._menu)
 
     def _update_status_bar_appearance(self):
@@ -92,9 +94,10 @@ class StackAppDelegate(NSObject):
             return
 
         # Set icon if available
-        if hasattr(self._stack_app, '_icon') and self._stack_app._icon:
+        if hasattr(self._stack_app, "_icon") and self._stack_app._icon:
             try:
                 from .sfsymbol import SFSymbol
+
                 image = None
 
                 # Handle SFSymbol objects
@@ -106,11 +109,12 @@ class StackAppDelegate(NSObject):
                     is_sfsymbol = True
                     sfsymbol_rendering = self._stack_app._icon.rendering
                 # Handle NSImage objects
-                elif hasattr(self._stack_app._icon, 'setTemplate_'):
+                elif hasattr(self._stack_app._icon, "setTemplate_"):
                     image = self._stack_app._icon
                 # Handle string paths or SF Symbol names
                 else:
                     import os
+
                     icon_path = str(self._stack_app._icon)
                     if os.path.exists(icon_path):
                         image = AppKit.NSImage.alloc().initByReferencingFile_(icon_path)
@@ -128,8 +132,15 @@ class StackAppDelegate(NSObject):
                 if image:
                     # Only set template mode if it's not an SFSymbol with special rendering
                     # Template mode forces monochrome, which overrides SF Symbol rendering modes
-                    should_set_template = hasattr(self._stack_app, '_template') and self._stack_app._template
-                    if is_sfsymbol and sfsymbol_rendering not in ["automatic", "monochrome", None]:
+                    should_set_template = (
+                        hasattr(self._stack_app, "_template")
+                        and self._stack_app._template
+                    )
+                    if is_sfsymbol and sfsymbol_rendering not in [
+                        "automatic",
+                        "monochrome",
+                        None,
+                    ]:
                         # Don't set template for multicolor, hierarchical, or palette rendering
                         should_set_template = False
 
@@ -138,7 +149,7 @@ class StackAppDelegate(NSObject):
 
                     self._status_item.button().setImage_(image)
                     # Also set title if available (supports both icon and title)
-                    if hasattr(self._stack_app, '_title') and self._stack_app._title:
+                    if hasattr(self._stack_app, "_title") and self._stack_app._title:
                         self._status_item.button().setTitle_(self._stack_app._title)
                     else:
                         self._status_item.button().setTitle_("")
@@ -154,7 +165,7 @@ class StackAppDelegate(NSObject):
     def _set_status_bar_title(self):
         """Set status bar title."""
         if self._status_item and self._stack_app:
-            title = getattr(self._stack_app, '_title', 'StackBar App')
+            title = getattr(self._stack_app, "_title", "StackBar App")
             self._status_item.button().setTitle_(title)
 
     # Workspace Notifications (Sleep/Wake)
@@ -168,14 +179,11 @@ class StackAppDelegate(NSObject):
                 self,
                 "receiveSleepNotification:",
                 "NSWorkspaceWillSleepNotification",
-                None
+                None,
             )
 
             notification_center.addObserver_selector_name_object_(
-                self,
-                "receiveWakeNotification:",
-                "NSWorkspaceDidWakeNotification",
-                None
+                self, "receiveWakeNotification:", "NSWorkspaceDidWakeNotification", None
             )
 
             self._workspace_notifications_enabled = True
@@ -191,7 +199,7 @@ class StackAppDelegate(NSObject):
     def receiveSleepNotification_(self, notification):
         """Handle system sleep notification."""
         NSLog("System going to sleep")
-        if hasattr(self._stack_app, '_on_sleep'):
+        if hasattr(self._stack_app, "_on_sleep"):
             try:
                 self._stack_app._on_sleep()
             except Exception as e:
@@ -200,7 +208,7 @@ class StackAppDelegate(NSObject):
     def receiveWakeNotification_(self, notification):
         """Handle system wake notification."""
         NSLog("System waking up")
-        if hasattr(self._stack_app, '_on_wake'):
+        if hasattr(self._stack_app, "_on_wake"):
             try:
                 self._stack_app._on_wake()
             except Exception as e:
@@ -342,6 +350,19 @@ class StackAppDelegate(NSObject):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
                 NSLog(f"Error in radio button callback: {e}")
+
+    @classmethod
+    def radioGroupCallback_(cls, sender):
+        """Handle radio group callbacks (same as radioButtonCallback_)."""
+        if sender in cls._callback_registry:
+            stack_item, callback = cls._callback_registry[sender]
+            try:
+                if callable(callback):
+                    callback(sender)
+                elif isinstance(callback, str):
+                    cls._execute_callback(stack_item, callback)
+            except Exception as e:
+                NSLog(f"Error in radio group callback: {e}")
                 traceback.print_exc()
 
     @classmethod
@@ -358,6 +379,7 @@ class StackAppDelegate(NSObject):
                 # Try to find on app instance
                 # We need to get the app instance somehow - could store it globally
                 from .core import _STACK_APP_INSTANCE
+
                 if _STACK_APP_INSTANCE and hasattr(_STACK_APP_INSTANCE, callback):
                     method = getattr(_STACK_APP_INSTANCE, callback)
                     method(stack_item)

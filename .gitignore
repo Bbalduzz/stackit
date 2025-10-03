@@ -37,5 +37,10 @@ htmlcov/
 # Documentation builds (but keep docs/ source files)
 docs/_build/
 
+# Example folders (personal/packaging tests)
+examples/reddit_showcase/
+examples/screentime_packaging/
+examples/ytdl_packaging/
+
 CLAUDE.md
 .claude

@@ -228,6 +228,9 @@ stackit provides many built-in controls::
 
     app = stackit.StackApp("Controls Demo")
 
+    def size_selected(sender):
+        print(f"Size: {sender.title()}")
+
     # Create layout with various controls
     layout = stackit.vstack([
         stackit.label("Download Progress", bold=True),
@@ -237,6 +240,13 @@ stackit provides many built-in controls::
         stackit.slider(width=150, min_value=0, max_value=100, value=50),
 
         stackit.checkbox("Enable notifications", checked=True),
+
+        stackit.label("Size", bold=True),
+        stackit.radio_group(
+            options=["Small", "Medium", "Large"],
+            selected=1,
+            callback=size_selected
+        ),
 
         stackit.button("Click Me", callback=lambda s: print("Clicked!"))
     ], spacing=8)
@@ -328,6 +338,89 @@ Create smooth line charts with spline interpolation using SpriteKit::
     app.run()
 
 **Note:** The line_chart control uses SpriteKit's SKKeyframeSequence for smooth spline interpolation, creating fluid curves like the original Swift implementation.
+
+Video Player
+------------
+
+Embed video players in your menu bar app using AVKit::
+
+    import stackit
+
+    app = stackit.StackApp("Video", icon=stackit.SFSymbol("play.rectangle.fill"))
+
+    # Create video player
+    player = stackit.video(
+        "https://example.com/video.mp4",
+        dimensions=(400, 225),
+        show_controls=True,
+        autoplay=False,
+        loop=False,
+        border_radius=12.0
+    )
+
+    item = stackit.MenuItem(layout=player)
+    app.add(item)
+    app.run()
+
+**Note:** Supports both local file paths and remote URLs. Requires macOS 10.10+.
+
+Interactive Maps
+----------------
+
+Add interactive maps with annotations using MapKit::
+
+    import stackit
+
+    app = stackit.StackApp("Maps", icon=stackit.SFSymbol("map.fill"))
+
+    # Create map with annotations
+    map1 = stackit.map_view(
+        latitude=37.7749,
+        longitude=-122.4194,
+        zoom=0.05,
+        dimensions=(400, 300),
+        map_type="standard",
+        show_controls=True,
+        border_radius=12.0,
+        annotations=[
+            {
+                'latitude': 37.7749,
+                'longitude': -122.4194,
+                'title': 'San Francisco',
+                'subtitle': 'Golden Gate City'
+            }
+        ]
+    )
+
+    item = stackit.MenuItem(layout=map1)
+    app.add(item)
+    app.run()
+
+**Available map types:** standard, satellite, hybrid, satellite_flyover, hybrid_flyover, muted_standard
+
+**Note:** Requires macOS 10.9+. Supports interactive zoom, pan, and rotation.
+
+Web Views
+---------
+
+Embed web content in your menu bar app using WebKit::
+
+    import stackit
+
+    app = stackit.StackApp("Browser", icon=stackit.SFSymbol("safari.fill"))
+
+    # Load a website
+    web = stackit.web_view(
+        "https://example.com",
+        dimensions=(500, 400),
+        border_radius=12.0
+    )
+
+    item = stackit.MenuItem(layout=web)
+    app.add(item)
+    app.run()
+
+**Note:** Requires macOS 10.10+. Can load URLs, local HTML files, or raw HTML strings.
 
 Dynamic Menu Updates
 --------------------

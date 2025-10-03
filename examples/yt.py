@@ -44,8 +44,9 @@ class YTDLPApp(stackit.StackApp):
 
         # Title section
         self.settings_button = stackit.button(
-            image=stackit.SFSymbol("gear"),
+            image=stackit.SFSymbol("gearshape.circle.fill", rendering="hierarchical", point_size=25),
             image_position="only",
+            style="recessed",
             target=self,
             action="openSettings:"
         )

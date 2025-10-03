@@ -5,14 +5,24 @@
 Utility functions for StackIt applications.
 """
 
+import objc
 import AppKit
-from AppKit import NSAlert, NSApp, NSApplication, NSWorkspace
-from Foundation import NSUserNotification, NSUserNotificationCenter, NSLog, NSTimer, NSRunLoop, NSDefaultRunLoopMode, NSRunLoopCommonModes
+from AppKit import NSAlert, NSApp, NSApplication, NSWorkspace, NSColor
+from Foundation import (
+    NSUserNotification,
+    NSUserNotificationCenter,
+    NSLog,
+    NSTimer,
+    NSRunLoop,
+    NSDefaultRunLoopMode,
+    NSRunLoopCommonModes,
+)
 import subprocess
 import json
 import os
 
-def alert(title=None, message='', ok=None, cancel=None, icon_path=None):
+
+def alert(title=None, message="", ok=None, cancel=None, icon_path=None):
     """Generate a simple alert window.
 
     Args:
@@ -26,15 +36,16 @@ def alert(title=None, message='', ok=None, cancel=None, icon_path=None):
         a number representing the button pressed (1 for ok, 0 for cancel)
     """
     message = str(message)
-    message = message.replace('%', '%%')
+    message = message.replace("%", "%%")
     if title is not None:
         title = str(title)
 
     if not isinstance(cancel, str):
-        cancel = 'Cancel' if cancel else None
+        cancel = "Cancel" if cancel else None
 
     alert = NSAlert.alertWithMessageText_defaultButton_alternateButton_otherButton_informativeTextWithFormat_(
-        title, ok, cancel, None, message)
+        title, ok, cancel, None, message
+    )
 
     alert.setAlertStyle_(0)  # informational style
 
@@ -46,7 +57,7 @@ def alert(title=None, message='', ok=None, cancel=None, icon_path=None):
         except:
             pass
 
-    NSLog(f'alert opened with message: {repr(message)}, title: {repr(title)}')
+    NSLog(f"alert opened with message: {repr(message)}, title: {repr(title)}")
     return alert.runModal()
 
 
@@ -82,6 +93,7 @@ def quit_application(sender=None):
     nsapplication = NSApplication.sharedApplication()
     nsapplication.terminate_(sender)
 
+
 def open_url(url):
     """Open a URL in the default browser."""
     try:
@@ -110,6 +122,7 @@ def choose_directory(title="Choose Directory", default_directory=None):
 
     if default_directory:
         import os
+
         if os.path.exists(default_directory):
             url = AppKit.NSURL.fileURLWithPath_(default_directory)
             panel.setDirectoryURL_(url)
@@ -135,10 +148,7 @@ def run_command(command, timeout=30):
             command = command.split()
 
         result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout
+            command, capture_output=True, text=True, timeout=timeout
         )
 
         return result.returncode, result.stdout, result.stderr
@@ -155,8 +165,7 @@ def get_application_support_path(app_name):
     from Foundation import NSSearchPathForDirectoriesInDomains
 
     app_support_path = os.path.join(
-        NSSearchPathForDirectoriesInDomains(14, 1, 1).objectAtIndex_(0),
-        app_name
+        NSSearchPathForDirectoriesInDomains(14, 1, 1).objectAtIndex_(0), app_name
     )
 
     if not os.path.isdir(app_support_path):
@@ -177,9 +186,9 @@ def save_preferences(app_name, preferences):
 
     try:
         app_support = get_application_support_path(app_name)
-        prefs_path = os.path.join(app_support, 'preferences.json')
+        prefs_path = os.path.join(app_support, "preferences.json")
 
-        with open(prefs_path, 'w') as f:
+        with open(prefs_path, "w") as f:
             json.dump(preferences, f, indent=2)
 
     except Exception as e:
@@ -202,10 +211,10 @@ def load_preferences(app_name, defaults=None):
 
     try:
         app_support = get_application_support_path(app_name)
-        prefs_path = os.path.join(app_support, 'preferences.json')
+        prefs_path = os.path.join(app_support, "preferences.json")
 
         if os.path.exists(prefs_path):
-            with open(prefs_path, 'r') as f:
+            with open(prefs_path, "r") as f:
                 return json.load(f)
         else:
             return defaults
@@ -213,6 +222,22 @@ def load_preferences(app_name, defaults=None):
     except Exception as e:
         NSLog(f"Error loading preferences: {e}")
         return defaults
+
+
+# Global TimerTarget class to avoid redefinition
+class _TimerTarget(AppKit.NSObject):
+    def initWithCallback_(self, cb):
+        self = objc.super(_TimerTarget, self).init()
+        if self:
+            self.callback = cb
+        return self
+
+    def timerFired_(self, timer):
+        if self.callback:
+            try:
+                self.callback(timer)
+            except Exception as e:
+                NSLog(f"Timer callback error: {e}")
 
 
 def timer(interval, callback, repeats=True):
@@ -226,22 +251,7 @@ def timer(interval, callback, repeats=True):
     Returns:
         NSTimer object
     """
-    # Create a simple wrapper class for the callback
-    class TimerTarget(AppKit.NSObject):
-        def initWithCallback_(self, cb):
-            self = super().init()
-            if self:
-                self.callback = cb
-            return self
-
-        def timerFired_(self, timer):
-            if self.callback:
-                try:
-                    self.callback(timer)
-                except Exception as e:
-                    NSLog(f"Timer callback error: {e}")
-
-    target = TimerTarget.alloc().initWithCallback_(callback)
+    target = _TimerTarget.alloc().initWithCallback_(callback)
     timer = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
         interval, target, "timerFired:", None, repeats
     )
@@ -287,3 +297,74 @@ def every(seconds, callback):
         # Later: timer.invalidate() to stop
     """
     return timer(seconds, callback, repeats=True)
+
+
+def parse_color(color, default=None):
+    """Parse a color from various formats into NSColor.
+
+    Args:
+        color: Color in various formats:
+            - NSColor object (returned as-is)
+            - Hex string: "#RRGGBB" or "#RRGGBBAA"
+            - RGB tuple: (r, g, b) with values 0-255 or 0.0-1.0
+            - RGBA tuple: (r, g, b, a) with values 0-255 or 0.0-1.0
+        default: Default NSColor to return if parsing fails (default: NSColor.labelColor())
+
+    Returns:
+        NSColor object
+
+    Example:
+        parse_color("#FF0000")  # Red
+        parse_color("#FF0000AA")  # Red with alpha
+        parse_color((255, 0, 0))  # Red (0-255 range)
+        parse_color((1.0, 0.0, 0.0))  # Red (0.0-1.0 range)
+        parse_color((255, 0, 0, 128))  # Red with alpha
+    """
+    if default is None:
+        default = NSColor.labelColor()
+
+    # Already an NSColor
+    if isinstance(color, NSColor):
+        return color
+
+    # Hex string
+    if isinstance(color, str):
+        if color.startswith("#"):
+            hex_color = color[1:]
+            try:
+                if len(hex_color) == 6:
+                    r = int(hex_color[0:2], 16) / 255.0
+                    g = int(hex_color[2:4], 16) / 255.0
+                    b = int(hex_color[4:6], 16) / 255.0
+                    return NSColor.colorWithRed_green_blue_alpha_(r, g, b, 1.0)
+                elif len(hex_color) == 8:
+                    r = int(hex_color[0:2], 16) / 255.0
+                    g = int(hex_color[2:4], 16) / 255.0
+                    b = int(hex_color[4:6], 16) / 255.0
+                    a = int(hex_color[6:8], 16) / 255.0
+                    return NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
+            except (ValueError, IndexError):
+                return default
+        return default
+
+    # Tuple (RGB or RGBA)
+    if isinstance(color, (tuple, list)):
+        try:
+            if len(color) == 3:
+                r, g, b = color
+                # Normalize 0-255 range to 0.0-1.0
+                if r > 1.0 or g > 1.0 or b > 1.0:
+                    r, g, b = r / 255.0, g / 255.0, b / 255.0
+                return NSColor.colorWithRed_green_blue_alpha_(r, g, b, 1.0)
+            elif len(color) == 4:
+                r, g, b, a = color
+                # Normalize 0-255 range to 0.0-1.0
+                if r > 1.0 or g > 1.0 or b > 1.0:
+                    r, g, b = r / 255.0, g / 255.0, b / 255.0
+                if a > 1.0:
+                    a = a / 255.0
+                return NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
+        except (ValueError, TypeError):
+            return default
+
+    return default

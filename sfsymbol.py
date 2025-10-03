@@ -23,35 +23,45 @@ class SFSymbol:
 
     # Constants for weight values (NSFont.Weight equivalents)
     WEIGHT_MAP = {
-        "ultraLight": -0.8,    # NSFontWeightUltraLight
-        "thin": -0.6,          # NSFontWeightThin
-        "light": -0.4,         # NSFontWeightLight
-        "regular": 0.0,        # NSFontWeightRegular
-        "medium": 0.23,        # NSFontWeightMedium
-        "semibold": 0.3,       # NSFontWeightSemibold
-        "bold": 0.4,           # NSFontWeightBold
-        "heavy": 0.56,         # NSFontWeightHeavy
-        "black": 0.62          # NSFontWeightBlack
+        "ultraLight": -0.8,  # NSFontWeightUltraLight
+        "thin": -0.6,  # NSFontWeightThin
+        "light": -0.4,  # NSFontWeightLight
+        "regular": 0.0,  # NSFontWeightRegular
+        "medium": 0.23,  # NSFontWeightMedium
+        "semibold": 0.3,  # NSFontWeightSemibold
+        "bold": 0.4,  # NSFontWeightBold
+        "heavy": 0.56,  # NSFontWeightHeavy
+        "black": 0.62,  # NSFontWeightBlack
     }
 
     # NSImage.SymbolScale values
     SCALE_MAP = {
-        "small": 1,    # NSImageSymbolScaleSmall
-        "medium": 2,   # NSImageSymbolScaleMedium
-        "large": 3     # NSImageSymbolScaleLarge
+        "small": 1,  # NSImageSymbolScaleSmall
+        "medium": 2,  # NSImageSymbolScaleMedium
+        "large": 3,  # NSImageSymbolScaleLarge
     }
 
     # NSImage.SymbolColorRenderingMode values
     RENDERING_MODE_MAP = {
-        "automatic": 0,     # Automatic
-        "monochrome": 1,    # Monochrome
+        "automatic": 0,  # Automatic
+        "monochrome": 1,  # Monochrome
         "hierarchical": 2,  # Hierarchical
-        "palette": 3,       # Palette
-        "multicolor": 4     # Multicolor
+        "palette": 3,  # Palette
+        "multicolor": 4,  # Multicolor
     }
 
-    def __init__(self, name, rendering="automatic", color="#ffffff", palette_colors=None,
-                 accessibility_description=None, point_size=None, weight=None, scale=None, text_style=None):
+    def __init__(
+        self,
+        name,
+        rendering="automatic",
+        color="#ffffff",
+        palette_colors=None,
+        accessibility_description=None,
+        point_size=None,
+        weight=None,
+        scale=None,
+        text_style=None,
+    ):
         """Create an SF Symbol with customization options.
 
         :param name: The name of the SF Symbol (e.g., "turtle", "heart.fill", "gear")
@@ -75,7 +85,9 @@ class SFSymbol:
         self.weight = weight
         self.scale = scale
         self.text_style = text_style
-        self.accessibility_description = accessibility_description or name.replace('.', ' ').replace('_', ' ')
+        self.accessibility_description = accessibility_description or name.replace(
+            ".", " "
+        ).replace("_", " ")
 
         self._nsimage = self._create_nsimage()
 
@@ -83,8 +95,12 @@ class SFSymbol:
         """Create the NSImage from the SF Symbol with applied customizations."""
         try:
             # Check if SF Symbols are available (macOS 11.0+)
-            if not hasattr(NSImage, 'imageWithSystemSymbolName_accessibilityDescription_'):
-                NSLog('SFSymbol: System symbols not available on this macOS version (requires 11.0+)')
+            if not hasattr(
+                NSImage, "imageWithSystemSymbolName_accessibilityDescription_"
+            ):
+                NSLog(
+                    "SFSymbol: System symbols not available on this macOS version (requires 11.0+)"
+                )
                 return None
 
             # Create base image using the class factory method
@@ -98,7 +114,7 @@ class SFSymbol:
 
             # Apply symbol configuration if we have any customizations
             config = self._build_configuration()
-            if config and hasattr(image, 'imageWithSymbolConfiguration_'):
+            if config and hasattr(image, "imageWithSymbolConfiguration_"):
                 configured_image = image.imageWithSymbolConfiguration_(config)
                 if configured_image:
                     image = configured_image
@@ -108,7 +124,9 @@ class SFSymbol:
             return image
 
         except AttributeError:
-            NSLog('SFSymbol: System symbols not available on this macOS version (requires 11.0+)')
+            NSLog(
+                "SFSymbol: System symbols not available on this macOS version (requires 11.0+)"
+            )
             return None
         except Exception as e:
             NSLog(f'SFSymbol: Error creating symbol "{self.name}": {e}')
@@ -117,7 +135,7 @@ class SFSymbol:
     def _build_configuration(self):
         """Build the complete symbol configuration by combining all requested traits."""
         # NSImageSymbolConfiguration is a separate class, not a subclass of NSImage
-        if not hasattr(AppKit, 'NSImageSymbolConfiguration'):
+        if not hasattr(AppKit, "NSImageSymbolConfiguration"):
             return None
 
         try:
@@ -143,7 +161,9 @@ class SFSymbol:
                 rendering_config = self._create_rendering_config()
                 if rendering_config:
                     if config:
-                        config = config.configurationByApplyingConfiguration_(rendering_config)
+                        config = config.configurationByApplyingConfiguration_(
+                            rendering_config
+                        )
                     else:
                         config = rendering_config
 
@@ -161,11 +181,16 @@ class SFSymbol:
                 ns_weight = self.WEIGHT_MAP.get(self.weight)
                 if ns_weight is not None:
                     ns_scale = self.SCALE_MAP.get(self.scale, 0)  # 0 = unspecified
-                    if hasattr(NSImageSymbolConfiguration, 'configurationWithPointSize_weight_scale_'):
+                    if hasattr(
+                        NSImageSymbolConfiguration,
+                        "configurationWithPointSize_weight_scale_",
+                    ):
                         return NSImageSymbolConfiguration.configurationWithPointSize_weight_scale_(
                             float(self.point_size), ns_weight, ns_scale
                         )
-                    elif hasattr(NSImageSymbolConfiguration, 'configurationWithPointSize_weight_'):
+                    elif hasattr(
+                        NSImageSymbolConfiguration, "configurationWithPointSize_weight_"
+                    ):
                         return NSImageSymbolConfiguration.configurationWithPointSize_weight_(
                             float(self.point_size), ns_weight
                         )
@@ -182,27 +207,35 @@ class SFSymbol:
                     "subheadline": "NSFontTextStyleSubheadline",
                     "title1": "NSFontTextStyleTitle1",
                     "title2": "NSFontTextStyleTitle2",
-                    "title3": "NSFontTextStyleTitle3"
+                    "title3": "NSFontTextStyleTitle3",
                 }
                 ns_text_style = text_style_map.get(self.text_style)
                 if ns_text_style:
-                    if self.scale and hasattr(NSImageSymbolConfiguration, 'configurationWithTextStyle_scale_'):
+                    if self.scale and hasattr(
+                        NSImageSymbolConfiguration, "configurationWithTextStyle_scale_"
+                    ):
                         ns_scale = self.SCALE_MAP.get(self.scale)
                         if ns_scale:
                             return NSImageSymbolConfiguration.configurationWithTextStyle_scale_(
                                 ns_text_style, ns_scale
                             )
-                    if hasattr(NSImageSymbolConfiguration, 'configurationWithTextStyle_'):
-                        return NSImageSymbolConfiguration.configurationWithTextStyle_(ns_text_style)
+                    if hasattr(
+                        NSImageSymbolConfiguration, "configurationWithTextStyle_"
+                    ):
+                        return NSImageSymbolConfiguration.configurationWithTextStyle_(
+                            ns_text_style
+                        )
 
             # Scale only (macOS 11+)
             elif self.scale is not None:
                 ns_scale = self.SCALE_MAP.get(self.scale)
-                if ns_scale and hasattr(NSImageSymbolConfiguration, 'configurationWithScale_'):
+                if ns_scale and hasattr(
+                    NSImageSymbolConfiguration, "configurationWithScale_"
+                ):
                     return NSImageSymbolConfiguration.configurationWithScale_(ns_scale)
 
         except Exception as e:
-            NSLog(f'SFSymbol: Error creating size/weight/scale config: {e}')
+            NSLog(f"SFSymbol: Error creating size/weight/scale config: {e}")
 
         return None
 
@@ -213,20 +246,28 @@ class SFSymbol:
 
         try:
             # Try convenience methods first (various macOS versions)
-            if self.rendering == "multicolor" and hasattr(NSImageSymbolConfiguration, 'preferringMulticolor'):
+            if self.rendering == "multicolor" and hasattr(
+                NSImageSymbolConfiguration, "preferringMulticolor"
+            ):
                 # macOS 12+
                 return NSImageSymbolConfiguration.preferringMulticolor()
-            elif self.rendering == "monochrome" and hasattr(NSImageSymbolConfiguration, 'preferringMonochrome'):
+            elif self.rendering == "monochrome" and hasattr(
+                NSImageSymbolConfiguration, "preferringMonochrome"
+            ):
                 # macOS 16+ (Ventura)
                 return NSImageSymbolConfiguration.preferringMonochrome()
             # elif hasattr(NSImageSymbolConfiguration, 'configurationWithColorRenderingMode_'):
             else:
                 mode = self.RENDERING_MODE_MAP.get(self.rendering)
                 if mode is not None:
-                    return NSImageSymbolConfiguration.configurationWithColorRenderingMode_(mode)
+                    return (
+                        NSImageSymbolConfiguration.configurationWithColorRenderingMode_(
+                            mode
+                        )
+                    )
 
         except Exception as e:
-            NSLog(f'SFSymbol: Error creating rendering config: {e}')
+            NSLog(f"SFSymbol: Error creating rendering config: {e}")
 
         return None
 
@@ -234,36 +275,51 @@ class SFSymbol:
         """Create color configuration using the correct factory methods."""
         try:
             # Palette mode with multiple colors (macOS 12+)
-            if self.palette_colors and hasattr(NSImageSymbolConfiguration, 'configurationWithPaletteColors_'):
+            if self.palette_colors and hasattr(
+                NSImageSymbolConfiguration, "configurationWithPaletteColors_"
+            ):
                 ns_colors = []
                 for color in self.palette_colors:
                     ns_color = self._parse_color(color)
                     if ns_color:
                         ns_colors.append(ns_color)
                 if ns_colors:
-                    return NSImageSymbolConfiguration.configurationWithPaletteColors_(ns_colors)
+                    return NSImageSymbolConfiguration.configurationWithPaletteColors_(
+                        ns_colors
+                    )
 
             # Single color handling based on rendering mode
             elif self.color:
                 ns_color = self._parse_color(self.color)
                 if ns_color:
                     # Hierarchical: base color with derived opacities (macOS 12+)
-                    if self.rendering == "hierarchical" and hasattr(NSImageSymbolConfiguration, 'configurationWithHierarchicalColor_'):
-                        return NSImageSymbolConfiguration.configurationWithHierarchicalColor_(ns_color)
+                    if self.rendering == "hierarchical" and hasattr(
+                        NSImageSymbolConfiguration,
+                        "configurationWithHierarchicalColor_",
+                    ):
+                        return NSImageSymbolConfiguration.configurationWithHierarchicalColor_(
+                            ns_color
+                        )
 
                     # Monochrome/Palette: single color (macOS 12+)
-                    elif hasattr(NSImageSymbolConfiguration, 'configurationWithPaletteColors_'):
-                        return NSImageSymbolConfiguration.configurationWithPaletteColors_([ns_color])
+                    elif hasattr(
+                        NSImageSymbolConfiguration, "configurationWithPaletteColors_"
+                    ):
+                        return (
+                            NSImageSymbolConfiguration.configurationWithPaletteColors_(
+                                [ns_color]
+                            )
+                        )
 
         except Exception as e:
-            NSLog(f'SFSymbol: Error creating color config: {e}')
+            NSLog(f"SFSymbol: Error creating color config: {e}")
 
         return None
 
     def _parse_color(self, color):
         """Parse color parameter into NSColor."""
         try:
-            if isinstance(color, str) and color.startswith('#'):
+            if isinstance(color, str) and color.startswith("#"):
                 # Parse hex color
                 hex_color = color[1:]
                 if len(hex_color) == 6:
@@ -283,9 +339,9 @@ class SFSymbol:
                 a = color[3] if len(color) > 3 else 1.0
                 # Normalize values if they appear to be in 0-255 range
                 if any(val > 1.0 for val in [r, g, b]):
-                    r, g, b = r/255.0, g/255.0, b/255.0
+                    r, g, b = r / 255.0, g / 255.0, b / 255.0
                 if a > 1.0:
-                    a = a/255.0
+                    a = a / 255.0
                 return NSColor.colorWithRed_green_blue_alpha_(r, g, b, a)
         except Exception as e:
             NSLog(f'SFSymbol: Error parsing color "{color}": {e}')
@@ -296,7 +352,11 @@ class SFSymbol:
         return self._nsimage
 
     def __repr__(self):
-        color_info = f'palette_colors={self.palette_colors}' if self.palette_colors else f'color="{self.color}"'
+        color_info = (
+            f"palette_colors={self.palette_colors}"
+            if self.palette_colors
+            else f'color="{self.color}"'
+        )
         return f'<SFSymbol: name="{self.name}", rendering="{self.rendering}", {color_info}>'
 
     @staticmethod
@@ -307,5 +367,7 @@ class SFSymbol:
         :param accessibility_description: Optional accessibility description for the symbol
         :return: NSImage object that can be used anywhere an image is expected in StackBar
         """
-        symbol = SFSymbol(symbol_name, accessibility_description=accessibility_description)
+        symbol = SFSymbol(
+            symbol_name, accessibility_description=accessibility_description
+        )
         return symbol()
