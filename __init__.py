@@ -10,7 +10,7 @@ rumps library.
 """
 
 __title__ = "stackit"
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 __author__ = "Edoardo Balducci"
 __license__ = "MIT"
 
@@ -54,6 +54,8 @@ from .controls import (
     video,
     map_view,
     web_view,
+    window,
+    window_layout,
 )
 
 __all__ = [
@@ -98,4 +100,6 @@ __all__ = [
     "video",
     "map_view",
     "web_view",
+    "window",
+    "window_layout",
 ]

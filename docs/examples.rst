@@ -638,3 +638,90 @@ Display fitness-style activity rings using ring charts::
 
     if __name__ == "__main__":
         ActivityDashboard().run()
+
+Standalone Window
+~~~~~~~~~~~~~~~~~
+
+Create a settings window that opens from the menu bar::
+
+    import stackit
+
+    class SettingsApp:
+        def __init__(self):
+            self.app = stackit.StackApp(
+                title="MyApp",
+                icon=stackit.SFSymbol("gear", color="#0A84FF")
+            )
+            self.setup_ui()
+
+        def setup_ui(self):
+            # Menu item to open settings window
+            settings_item = stackit.MenuItem(
+                title="Settings...",
+                callback=self.open_settings,
+                key_equivalent=","  # ⌘,
+            )
+            self.app.add(settings_item)
+
+        def open_settings(self, sender):
+            # Create window
+            win = stackit.window(
+                title="Settings",
+                size=(400, 350),
+                resizable=True,
+                closable=True,
+            )
+
+            # Create layout with form controls
+            content = stackit.vstack([
+                stackit.label("Application Settings", bold=True, font_size=16),
+                stackit.separator(),
+
+                # Username field
+                stackit.hstack([
+                    stackit.label("Username:", width=100),
+                    stackit.text_field(placeholder="Enter username", width=250),
+                ], spacing=10.0),
+
+                # Email field
+                stackit.hstack([
+                    stackit.label("Email:", width=100),
+                    stackit.text_field(placeholder="Enter email", width=250),
+                ], spacing=10.0),
+
+                # Password field
+                stackit.hstack([
+                    stackit.label("Password:", width=100),
+                    stackit.secure_text_input(placeholder="Enter password", width=250),
+                ], spacing=10.0),
+
+                stackit.separator(),
+
+                # Checkboxes
+                stackit.checkbox("Enable notifications"),
+                stackit.checkbox("Auto-save settings"),
+
+                stackit.spacer(),
+
+                # Action buttons
+                stackit.hstack([
+                    stackit.spacer(),
+                    stackit.button("Cancel", callback=lambda s: win.close(), style="rounded"),
+                    stackit.button("Save", callback=self.save_settings, style="default"),
+                ], spacing=10.0),
+            ], spacing=12.0)
+
+            # Add layout to window with padding
+            stackit.window_layout(win, content, padding=(20, 20, 20, 20))
+
+            # Show window
+            win.makeKeyAndOrderFront_(None)
+
+        def save_settings(self, sender):
+            stackit.notification("Settings", "Your settings have been saved!")
+
+        def run(self):
+            self.app.run()
+
+    if __name__ == "__main__":
+        SettingsApp().run()

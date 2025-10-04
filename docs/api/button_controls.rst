@@ -8,13 +8,40 @@ Create a clickable button.
 
 .. code-block:: python
 
+   # Modern callback approach (recommended)
+   def on_click(sender):
+       print(f"Button clicked: {sender}")
+
+   btn = stackit.button("Click Me", callback=on_click)
+
+   # With button styles
+   primary_btn = stackit.button("Save", callback=save_handler, style="default")
+   cancel_btn = stackit.button("Cancel", callback=cancel_handler, style="rounded")
+
+   # With SF Symbol image
+   icon_btn = stackit.button(
+       "Settings",
+       callback=open_settings,
+       image=stackit.SFSymbol("gear", color="#0A84FF"),
+       image_position="left"
+   )
+
+   # Legacy target/action approach (still supported)
    btn = stackit.button("Click Me", target=self, action="buttonClicked:")
 
 **Parameters:**
 
-* ``title`` (str) - Button text
-* ``target`` (object) - Target object for action (optional)
-* ``action`` (str) - Selector string for action (optional)
+* ``title`` (str, optional) - Button text (optional if image provided)
+* ``callback`` (callable, optional) - Python function called when clicked (recommended)
+* ``target`` (object, optional) - Target object for action (legacy)
+* ``action`` (str, optional) - Selector string for action (legacy)
+* ``style`` (str) - Button style: "default" (blue primary), "rounded", "inline", "textured", "rounded-rect", "recessed", "disclosure" (default: "default")
+* ``image`` (SFSymbol, NSImage, str, optional) - Optional button image
+* ``image_position`` (str) - Image position: "left", "right", "above", "below", "only" (default: "left")
+
+**Returns:** NSButton configured with title, image, and action
+
+**Note:** Using ``callback`` is recommended over ``target``/``action`` for consistency with other controls. The callback receives a ``sender`` parameter (the NSButton instance).
 
 checkbox()
 ----------
