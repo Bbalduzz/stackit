@@ -33,14 +33,21 @@ from AppKit import (
     NSImage,
     NSApp,
 )
-from .sfsymbol import SFSymbol
+from symbols import SFSymbol
 from .delegate import StackAppDelegate
-from . import controls
+import controls
+from constants import (
+    Alignment,
+    convert_alignment,
+    convert_badge_type,
+    BadgeType
+)
 from PyObjCTools import AppHelper
 import objc
 import os
 import weakref
 import traceback
+from typing import Union, Optional
 
 
 # Global state for the application
@@ -114,30 +121,33 @@ class StackView(NSStackView):
 
 
 # Standalone layout functions
-def hstack(controls=None, alignment=None, spacing=8.0):
+def hstack(controls=None, alignment: Union[str, Alignment, None] = None, spacing=8.0):
     """Create a horizontal stack view.
 
     Args:
         controls: Optional list of controls to add to the stack
-        alignment: Optional alignment (NSLayoutAttribute constant)
+        alignment: Optional alignment (Alignment enum or legacy string)
+                  Use Alignment.CENTER_X, Alignment.CENTER_Y, Alignment.LEADING, or Alignment.TRAILING
         spacing: Spacing between controls in points (default: 8.0)
 
     Returns:
         StackView configured for horizontal layout
     """
-    alignments_map = {
-        "center_x": AppKit.NSLayoutAttributeCenterX,
-        "center_y": AppKit.NSLayoutAttributeCenterY,
-        "leading": AppKit.NSLayoutAttributeLeading,
-        "trailing": AppKit.NSLayoutAttributeTrailing,
-    }
     stack = StackView.alloc().initWithOrientation_(
         AppKit.NSUserInterfaceLayoutOrientationHorizontal
     )
+
     if alignment is not None:
-        stack.setAlignment_(alignments_map[alignment])
+        # Convert to enum if string, with deprecation warning
+        alignment_enum = convert_alignment(alignment)
+        appkit_constant = alignment_enum.to_appkit_constant()
+        if appkit_constant is not None:
+            stack.setAlignment_(appkit_constant)
+        else:
+            stack.setAlignment_(AppKit.NSLayoutAttributeCenterY)
     else:
         stack.setAlignment_(AppKit.NSLayoutAttributeCenterY)
+
     stack.setSpacing_(spacing)
 
     if controls:
@@ -173,12 +183,13 @@ class ResponsiveMenu(NSMenu):
         return False
 
 
-def vstack(controls=None, alignment=None, spacing=8.0):
+def vstack(controls=None, alignment: Union[str, Alignment, None] = None, spacing=8.0):
     """Create a vertical stack view.
 
     Args:
         controls: Optional list of controls to add to the stack
-        alignment: Optional alignment (NSLayoutAttribute constant)
+        alignment: Optional alignment (Alignment enum or legacy string)
+                  Use Alignment.CENTER_X, Alignment.CENTER_Y, Alignment.LEADING, or Alignment.TRAILING
         spacing: Spacing between controls in points (default: 8.0)
 
     Returns:
@@ -187,10 +198,18 @@ def vstack(controls=None, alignment=None, spacing=8.0):
     stack = StackView.alloc().initWithOrientation_(
         AppKit.NSUserInterfaceLayoutOrientationVertical
     )
+
     if alignment is not None:
-        stack.setAlignment_(alignment)
+        # Convert to enum if string, with deprecation warning
+        alignment_enum = convert_alignment(alignment)
+        appkit_constant = alignment_enum.to_appkit_constant()
+        if appkit_constant is not None:
+            stack.setAlignment_(appkit_constant)
+        else:
+            stack.setAlignment_(AppKit.NSLayoutAttributeLeading)
     else:
         stack.setAlignment_(AppKit.NSLayoutAttributeLeading)
+
     stack.setSpacing_(spacing)
 
     if controls:
@@ -218,6 +237,8 @@ class MenuItem(NSObject):
         layout=None,
         callback=None,
         key_equivalent=None,
+        key_equivalent_modifier_mask=None,
+        hide_command_flag=False,
         submenu=None,
         badge=None,
     ):
@@ -236,11 +257,56 @@ class MenuItem(NSObject):
         if callback and submenu is None:
             StackAppDelegate.register_callback(instance._menuitem, instance, callback)
         if key_equivalent:
-            instance._menuitem.setKeyEquivalent_(key_equivalent)
+            # Handle tuple/list format: ("shift", "f") or ["shift", "f"] etc.
+            if (isinstance(key_equivalent, (tuple, list)) and len(key_equivalent) == 2):
+                modifier_name, key_char = key_equivalent
+
+                # Parse modifier name to AppKit constant
+                from AppKit import (
+                    NSEventModifierFlagShift,
+                    NSEventModifierFlagOption,
+                    NSEventModifierFlagControl,
+                    NSEventModifierFlagCommand
+                )
+
+                modifier_map = {
+                    "shift": NSEventModifierFlagShift,
+                    "alt": NSEventModifierFlagOption,
+                    "option": NSEventModifierFlagOption,
+                    "ctrl": NSEventModifierFlagControl,
+                    "control": NSEventModifierFlagControl,
+                    "cmd": NSEventModifierFlagCommand,
+                    "command": NSEventModifierFlagCommand,
+                }
+
+                # Start with Command by default unless hide_command_flag is True
+                modifier_mask = 0 if hide_command_flag else NSEventModifierFlagCommand
+
+                # Add the specified modifier
+                if modifier_name.lower() in modifier_map:
+                    modifier_mask |= modifier_map[modifier_name.lower()]
+
+                # Ensure key_char is a string
+                key_char_str = str(key_char) if key_char is not None else ""
+                instance._menuitem.setKeyEquivalent_(key_char_str)
+                instance._menuitem.setKeyEquivalentModifierMask_(modifier_mask)
+            elif isinstance(key_equivalent, str):
+                # Handle string format (legacy)
+                instance._menuitem.setKeyEquivalent_(key_equivalent)
+            # If it's neither tuple nor string, skip setting key equivalent
+
+        # Set key equivalent modifier mask if provided (legacy support)
+        if key_equivalent_modifier_mask is not None:
+            instance._menuitem.setKeyEquivalentModifierMask_(
+                key_equivalent_modifier_mask
+            )
 
         instance._custom_view = None
         instance._root_stack = None
         instance._padding = (6.0, 12.0, 6.0, 12.0)  # top, leading, bottom, trailing
+        instance._max_width = (
+            600.0  # Default maximum width to prevent infinite expansion
+        )
         instance._is_simple = title is not None and layout is None
         instance._submenu = None
         instance._badge = None
@@ -302,6 +368,12 @@ class MenuItem(NSObject):
             self._custom_view.trailingAnchor(), -padding_trailing
         ).setActive_(True)
 
+        # Add maximum width constraint to prevent menu from expanding indefinitely
+        # This prevents spacers from causing the menu to stretch across the entire screen
+        self._custom_view.widthAnchor().constraintLessThanOrEqualToConstant_(
+            self._max_width
+        ).setActive_(True)
+
         # Force the view to update its layout and redraw
         self._custom_view.setNeedsLayout_(True)
         self._custom_view.setNeedsDisplay_(True)
@@ -348,20 +420,20 @@ class MenuItem(NSObject):
         self._submenu = submenu
 
     @objc.python_method
-    def set_badge(self, badge_type, count=None):
+    def set_badge(self, badge_type: Union[str, BadgeType, None], count: Optional[int] = None):
         """Set a badge for this menu item (macOS 14.0+).
 
         Args:
-            badge_type: String indicating badge type
-                       Supported types: "updates", "new-items", "alerts", or None to remove
+            badge_type: Badge type (BadgeType enum or legacy string)
+                       Use BadgeType.UPDATES, BadgeType.NEW_ITEMS, BadgeType.ALERTS, or None to remove
             count: Optional badge count (integer). If None, uses system default.
 
         Example:
-            item.set_badge("updates")           # Shows "updates available" badge
-            item.set_badge("updates", count=5)  # Shows badge with count 5
-            item.set_badge("new-items")         # Shows "new items" badge
-            item.set_badge("alerts")            # Shows "alerts" badge
-            item.set_badge(None)                # Removes badge
+            item.set_badge(BadgeType.UPDATES)           # Shows "updates available" badge
+            item.set_badge(BadgeType.UPDATES, count=5)  # Shows badge with count 5
+            item.set_badge(BadgeType.NEW_ITEMS)         # Shows "new items" badge
+            item.set_badge(BadgeType.ALERTS)            # Shows "alerts" badge
+            item.set_badge(None)                        # Removes badge
         """
         # Check if NSMenuItemBadge is available (macOS 14.0+)
         if not hasattr(AppKit, "NSMenuItemBadge"):
@@ -375,34 +447,23 @@ class MenuItem(NSObject):
                 self._badge = None
                 return
 
-            # Map badge type string to NSMenuItemBadgeType constant
-            if isinstance(badge_type, str):
-                badge_type_lower = badge_type.lower().replace("-", "").replace("_", "")
+            # Convert to enum if string, with deprecation warning
+            badge_enum = convert_badge_type(badge_type)
+            badge_type_constant = badge_enum.to_appkit_constant()
 
-                if badge_type_lower in ["updates", "update"]:
-                    badge_type_enum = AppKit.NSMenuItemBadgeTypeUpdates
-                elif badge_type_lower in ["newitems", "new"]:
-                    badge_type_enum = AppKit.NSMenuItemBadgeTypeNewItems
-                elif badge_type_lower in ["alerts", "alert"]:
-                    badge_type_enum = AppKit.NSMenuItemBadgeTypeAlerts
-                else:
-                    NSLog(
-                        f"Warning: Unknown badge type '{badge_type}'. Use 'updates', 'new-items', or 'alerts'"
-                    )
-                    return
-            else:
-                # Assume it's already a badge type constant
-                badge_type_enum = badge_type
+            if badge_type_constant is None:
+                NSLog("Warning: Badge type constants not available on this macOS version")
+                return
 
             # Create badge with count if specified, otherwise use type-only initializer
             if count is not None:
                 badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(
-                    count, badge_type_enum
+                    count, badge_type_constant
                 )
             else:
                 # Use count 0 for default badge appearance (no number shown)
                 badge = AppKit.NSMenuItemBadge.alloc().initWithCount_type_(
-                    0, badge_type_enum
+                    0, badge_type_constant
                 )
 
             # Set the badge on the menu item
@@ -413,6 +474,28 @@ class MenuItem(NSObject):
                 NSLog("Warning: setBadge_ not available on NSMenuItem")
         except Exception as e:
             NSLog(f"Error setting badge: {e}")
+
+    @objc.python_method
+    def set_max_width(self, width):
+        """Set the maximum width for this menu item.
+
+        Args:
+            width: Maximum width in points (default: 600.0)
+        """
+        self._max_width = width
+        # If custom view already exists, update its constraint
+        if self._custom_view is not None:
+            # Remove any existing width constraints
+            for constraint in self._custom_view.constraints():
+                if (
+                    hasattr(constraint, "firstAnchor")
+                    and constraint.firstAnchor() == self._custom_view.widthAnchor()
+                ):
+                    constraint.setActive_(False)
+            # Add new width constraint
+            self._custom_view.widthAnchor().constraintLessThanOrEqualToConstant_(
+                self._max_width
+            ).setActive_(True)
 
     @objc.python_method
     def menuitem(self):
@@ -521,6 +604,10 @@ class _StackApp(NSObject):
         # Auto-generate key if not provided
         if key is None:
             key = f"_item_{len(self._menu_items)}"
+
+        # Apply default max width if menu item doesn't have a custom one
+        if hasattr(self, "_default_menu_max_width") and menu_item._max_width == 600.0:
+            menu_item.set_max_width(self._default_menu_max_width)
 
         self._menu_items[key] = menu_item
         self._menu.addItem_(menu_item.menuitem())
@@ -634,12 +721,13 @@ class StackApp(_StackApp):
         instance = cls.alloc()
         return instance
 
-    def __init__(self, title=None, icon=None):
+    def __init__(self, title=None, icon=None, menu_max_width=600.0):
         """Initialize a StackApp with modern Python API.
 
         Args:
             title: Optional title string for the status bar
             icon: Optional icon (NSImage, SFSymbol, or path string)
+            menu_max_width: Default maximum width for menu items (default: 600.0 points)
 
         At least one of title or icon must be provided.
         The app automatically includes a separator and Quit button.
@@ -653,6 +741,10 @@ class StackApp(_StackApp):
 
             # With both
             app = StackApp(title="My App", icon=SFSymbol("gear"))
+
+            # With custom max width
+            app = StackApp(title="My App", menu_max_width=400.0)
         """
         # Initialize using the Objective-C init method
         objc.super(StackApp, self).initWithTitle_icon_(title, icon)
+        self._default_menu_max_width = menu_max_width

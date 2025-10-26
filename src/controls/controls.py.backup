@@ -41,8 +41,15 @@ from AppKit import (
     NSTimeZone,
 )
 import httpx
-from .sfsymbol import SFSymbol
-from .utils import parse_color
+from symbols import SFSymbol
+from utils import parse_color
+from constants import (
+    Orientation,
+    MapType,
+    convert_orientation,
+    convert_map_type
+)
+from typing import Union
 
 # Import SpriteKit for line chart
 try:
@@ -81,6 +88,37 @@ except ImportError:
 _delegate_registry = {}
 import objc
 import datetime
+import os
+
+
+class PersistentDefaultButton(NSButton):
+    """NSButton subclass that maintains its default (blue) appearance.
+
+    This prevents the button from losing its accent color when menus close/reopen
+    or when other controls are interacted with.
+    """
+
+    def init(self):
+        self = objc.super(PersistentDefaultButton, self).init()
+        if self:
+            self._should_maintain_key_equivalent = False
+        return self
+
+    @objc.python_method
+    def set_persistent_key_equivalent(self, value):
+        """Mark this button to maintain its key equivalent state."""
+        self._should_maintain_key_equivalent = value
+        if value:
+            # Ensure the button is set as the default button
+            self.setKeyEquivalent_("\r")
+
+    def resignFirstResponder(self):
+        """Override to maintain key equivalent status even when resigning first responder."""
+        result = objc.super(PersistentDefaultButton, self).resignFirstResponder()
+        # Restore key equivalent if we're supposed to maintain it
+        if hasattr(self, '_should_maintain_key_equivalent') and self._should_maintain_key_equivalent:
+            self.setKeyEquivalent_("\r")
+        return result
 
 
 class ScrollViewWithTextView(NSScrollView):
@@ -750,11 +788,22 @@ def button(
     # Create button with title (empty string if no title)
     button_title = str(title) if title is not None else ""
 
-    # If callback is provided, use the delegate system; otherwise use target/action
-    if callback:
-        button = NSButton.buttonWithTitle_target_action_(button_title, None, None)
+    # Use custom button class for "default" style to maintain accent color
+    if style == "default" or style == "primary":
+        button = PersistentDefaultButton.alloc().init()
+        button.setTitle_(button_title)
+        if callback:
+            # Will be set up later
+            pass
+        elif target and action:
+            button.setTarget_(target)
+            button.setAction_(action)
     else:
-        button = NSButton.buttonWithTitle_target_action_(button_title, target, action)
+        # If callback is provided, use the delegate system; otherwise use target/action
+        if callback:
+            button = NSButton.buttonWithTitle_target_action_(button_title, None, None)
+        else:
+            button = NSButton.buttonWithTitle_target_action_(button_title, target, action)
 
     button.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
@@ -800,7 +849,11 @@ def button(
     if style == "default" or style == "primary":
         # Blue default action button (responds to Return key)
         button.setBezelStyle_(AppKit.NSBezelStyleRounded)
-        button.setKeyEquivalent_("\r")  # Return key
+        # Enable persistent key equivalent for PersistentDefaultButton
+        if isinstance(button, PersistentDefaultButton):
+            button.set_persistent_key_equivalent(True)
+        else:
+            button.setKeyEquivalent_("\r")  # Return key
     elif style == "rounded":
         button.setBezelStyle_(AppKit.NSBezelStyleRounded)
     elif style == "inline":
@@ -829,7 +882,7 @@ def button(
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         button.setTarget_(NSApp)
         button.setAction_("buttonCallback:")
@@ -1097,7 +1150,7 @@ def slider(value=50, min_value=0, max_value=100, width=180, height=15, callback=
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         slider.setTarget_(NSApp)
         slider.setAction_("sliderCallback:")
@@ -1129,7 +1182,7 @@ def checkbox(title="", checked=False, callback=None):
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         checkbox.setTarget_(NSApp)
         checkbox.setAction_("checkboxCallback:")
@@ -1176,7 +1229,7 @@ def combobox(
 
     # Set up callback using NSApp and StackAppDelegate
     if callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         combobox.setTarget_(NSApp)
         combobox.setAction_("comboboxCallback:")
@@ -1407,7 +1460,7 @@ def radio_button(
     if target and action:
         radio_button = NSButton.buttonWithTitle_target_action_(title, target, action)
     elif callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         radio_button = NSButton.buttonWithTitle_target_action_(
             title, NSApp, "radioButtonCallback:"
@@ -1429,7 +1482,7 @@ def radio_button(
 def radio_group(
     options: list[str] | list,
     selected: int = 0,
-    orientation: str = "vertical",
+    orientation: Union[str, Orientation] = Orientation.VERTICAL,
     spacing: float = 8.0,
     callback=None,
     **kwargs,
@@ -1439,7 +1492,8 @@ def radio_group(
     Args:
         options: List of radio button labels (strings) or pre-configured NSButton radio buttons
         selected: Index of initially selected option (default: 0)
-        orientation: "vertical" or "horizontal" layout (default: "vertical")
+        orientation: Layout orientation (Orientation enum or legacy string)
+                    Use Orientation.VERTICAL or Orientation.HORIZONTAL
         spacing: Spacing between radio buttons in points (default: 8.0)
         callback: Python function called when selection changes.
                   Receives the NSButton that was selected.
@@ -1447,8 +1501,8 @@ def radio_group(
 
     Returns: StackView containing the radio button group
     """
-    from .core import hstack, vstack
-    from .delegate import StackAppDelegate
+    from core import hstack, vstack
+    from core.delegate import StackAppDelegate
 
     # Create radio buttons
     radio_buttons = []
@@ -1500,7 +1554,9 @@ def radio_group(
         )
 
     # Create stack layout
-    if orientation == "horizontal":
+    # Convert to enum if string, with deprecation warning
+    orientation_enum = convert_orientation(orientation)
+    if orientation_enum == Orientation.HORIZONTAL:
         container = hstack(radio_buttons, spacing=spacing)
     else:
         container = vstack(radio_buttons, spacing=spacing)
@@ -1548,7 +1604,7 @@ def date_picker(
         date_picker.setTarget_(target)
         date_picker.setAction_(action)
     elif callback:
-        from .delegate import StackAppDelegate
+        from core.delegate import StackAppDelegate
 
         date_picker.setTarget_(NSApp)
         date_picker.setAction_("datePickerCallback:")
@@ -2653,7 +2709,7 @@ def map_view(
     longitude=-122.4194,
     zoom=0.05,
     dimensions=(320, 240),
-    map_type="standard",
+    map_type: Union[str, MapType] = MapType.STANDARD,
     show_controls=True,
     annotations=None,
     border_radius=None,
@@ -2665,7 +2721,8 @@ def map_view(
         longitude: Center longitude coordinate (default: San Francisco)
         zoom: Zoom level as coordinate span in degrees (smaller = more zoomed in, default: 0.05)
         dimensions: Tuple of (width, height) in points
-        map_type: Map type - "standard", "satellite", "hybrid", "satellite_flyover", "hybrid_flyover", "muted_standard" (default: "standard")
+        map_type: Map type (MapType enum or legacy string)
+                  Use MapType.STANDARD, .SATELLITE, .HYBRID, .SATELLITE_FLYOVER, .HYBRID_FLYOVER, .MUTED_STANDARD
         show_controls: Whether to show zoom and compass controls (default: True)
         annotations: List of annotation dicts with keys: 'latitude', 'longitude', 'title', 'subtitle' (optional)
         border_radius: Optional corner radius in points (e.g., 8.0 for rounded corners)
@@ -2699,21 +2756,10 @@ def map_view(
         map_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
         # Set map type
-        map_type_dict = {
-            "standard": MapKit.MKMapTypeStandard,
-            "satellite": MapKit.MKMapTypeSatellite,
-            "hybrid": MapKit.MKMapTypeHybrid,
-        }
-
-        # Handle newer map types with version check
-        if hasattr(MapKit, "MKMapTypeSatelliteFlyover"):
-            map_type_dict["satellite_flyover"] = MapKit.MKMapTypeSatelliteFlyover
-        if hasattr(MapKit, "MKMapTypeHybridFlyover"):
-            map_type_dict["hybrid_flyover"] = MapKit.MKMapTypeHybridFlyover
-        if hasattr(MapKit, "MKMapTypeMutedStandard"):
-            map_type_dict["muted_standard"] = MapKit.MKMapTypeMutedStandard
-
-        map_view.setMapType_(map_type_dict.get(map_type, MapKit.MKMapTypeStandard))
+        # Convert to enum if string, with deprecation warning
+        map_type_enum = convert_map_type(map_type)
+        mapkit_constant = map_type_enum.to_mapkit_constant()
+        map_view.setMapType_(mapkit_constant if mapkit_constant is not None else MapKit.MKMapTypeStandard)
 
         # Set center coordinate and zoom level
         center = MapKit.CLLocationCoordinate2D()

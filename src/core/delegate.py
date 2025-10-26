@@ -15,6 +15,7 @@ from AppKit import NSApplication, NSStatusBar
 from PyObjCTools import AppHelper
 import objc
 import traceback
+import threading
 
 
 class StackAppDelegate(NSObject):
@@ -24,7 +25,7 @@ class StackAppDelegate(NSObject):
     similar to rumps NSApp but for the isolated stackbar framework.
     """
 
-    # Class-level callback registry (similar to rumps _ns_to_py_and_callback)
+    # Class-level callback registry
     _callback_registry = {}
 
     def initWithStackApp_(self, stack_app):
@@ -96,11 +97,9 @@ class StackAppDelegate(NSObject):
         # Set icon if available
         if hasattr(self._stack_app, "_icon") and self._stack_app._icon:
             try:
-                from .sfsymbol import SFSymbol
+                from symbols import SFSymbol
 
                 image = None
-
-                # Handle SFSymbol objects
                 is_sfsymbol = False
                 sfsymbol_rendering = None
 
@@ -263,7 +262,7 @@ class StackAppDelegate(NSObject):
             try:
                 # For controls, we pass the sender (NSSlider) to the callback
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     # Handle string callbacks if needed
                     cls._execute_callback(stack_item, callback)
@@ -281,7 +280,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -298,7 +297,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -315,7 +314,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -330,7 +329,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -345,7 +344,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -358,7 +357,7 @@ class StackAppDelegate(NSObject):
             stack_item, callback = cls._callback_registry[sender]
             try:
                 if callable(callback):
-                    callback(sender)
+                    cls._execute_callback_in_thread(callback, sender)
                 elif isinstance(callback, str):
                     cls._execute_callback(stack_item, callback)
             except Exception as e:
@@ -366,15 +365,34 @@ class StackAppDelegate(NSObject):
                 traceback.print_exc()
 
     @classmethod
+    def _execute_callback_in_thread(cls, callback_func, arg):
+        """Execute a callback in a background thread to prevent UI freezing.
+
+        Args:
+            callback_func: The callback function to execute
+            arg: The argument to pass to the callback (sender or stack_item)
+        """
+
+        def run_callback():
+            try:
+                callback_func(arg)
+            except Exception as e:
+                NSLog(f"Error in background callback: {e}")
+                traceback.print_exc()
+
+        thread = threading.Thread(target=run_callback, daemon=True)
+        thread.start()
+
+    @classmethod
     def _execute_callback(cls, stack_item, callback):
-        """Execute a callback with proper error handling."""
+        """Execute a callback with proper error handling in a background thread."""
         if callable(callback):
-            callback(stack_item)
+            cls._execute_callback_in_thread(callback, stack_item)
         elif isinstance(callback, str):
             # Try to find method on stack_item first, then on app instance
             if hasattr(stack_item, callback):
                 method = getattr(stack_item, callback)
-                method(stack_item)
+                cls._execute_callback_in_thread(method, stack_item)
             else:
                 # Try to find on app instance
                 # We need to get the app instance somehow - could store it globally
@@ -382,7 +400,7 @@ class StackAppDelegate(NSObject):
 
                 if _STACK_APP_INSTANCE and hasattr(_STACK_APP_INSTANCE, callback):
                     method = getattr(_STACK_APP_INSTANCE, callback)
-                    method(stack_item)
+                    cls._execute_callback_in_thread(method, stack_item)
                 else:
                     NSLog(f"Callback method '{callback}' not found")
         else:
@@ -410,13 +428,54 @@ class StackAppDelegate(NSObject):
     # Menu Delegate Methods (NSMenuDelegate)
     def menuWillOpen_(self, menu):
         """Called when menu is about to open."""
-        # Keep menu responsive by ensuring it remains key
-        pass
+        # Restore accent colors to all registered controls
+        self._restore_control_appearance(menu)
 
     def menuDidClose_(self, menu):
         """Called when menu closes."""
-        # Release any first responders when menu closes
-        NSApplication.sharedApplication().keyWindow().makeFirstResponder_(None)
+        # Don't clear first responder - this can cause controls to lose their accent color
+        # The system will handle first responder management appropriately
+        pass
+
+    @objc.python_method
+    def _restore_control_appearance(self, menu):
+        """Restore the appearance of controls in the menu to maintain accent colors.
+
+        This fixes the issue where controls (buttons, sliders, etc.) lose their
+        accent color when the menu reopens or after interaction.
+        """
+        if not menu:
+            return
+
+        for item in menu.itemArray():
+            view = item.view()
+            if view:
+                self._restore_view_appearance(view)
+
+    @objc.python_method
+    def _restore_view_appearance(self, view):
+        """Recursively restore appearance for a view and its subviews."""
+        # Force the view to redisplay with proper colors
+        view.setNeedsDisplay_(True)
+
+        # Handle specific control types
+        if isinstance(view, AppKit.NSButton):
+            # For buttons with key equivalent (default/primary style)
+            if view.keyEquivalent() == "\r":
+                view.setKeyEquivalent_("\r")
+        elif isinstance(view, AppKit.NSSlider):
+            # Force slider to refresh its appearance
+            current_value = view.doubleValue()
+            view.setDoubleValue_(current_value)
+        elif isinstance(view, AppKit.NSProgressIndicator):
+            # Force progress indicator to refresh
+            current_value = view.doubleValue()
+            view.setDoubleValue_(current_value)
+
+        # Recursively handle subviews (for stack views, etc.)
+        if hasattr(view, "subviews"):
+            for subview in view.subviews():
+                self._restore_view_appearance(subview)
 
     def confinementRectForMenu_onScreen_(self, menu, screen):
         """Return the confinement rect for the menu.

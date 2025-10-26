@@ -224,7 +224,6 @@ def load_preferences(app_name, defaults=None):
         return defaults
 
 
-# Global TimerTarget class to avoid redefinition
 class _TimerTarget(AppKit.NSObject):
     def initWithCallback_(self, cb):
         self = objc.super(_TimerTarget, self).init()

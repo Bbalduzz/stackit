@@ -12,6 +12,15 @@ import Foundation
 import AppKit
 from Foundation import NSLog
 from AppKit import NSImage, NSImageSymbolConfiguration, NSColor
+from constants import (
+    SymbolRenderingMode,
+    SymbolScale,
+    SymbolWeight,
+    convert_rendering_mode,
+    convert_symbol_scale,
+    convert_symbol_weight,
+)
+from typing import Union, Optional, List
 
 
 class SFSymbol:
@@ -52,20 +61,21 @@ class SFSymbol:
 
     def __init__(
         self,
-        name,
-        rendering="automatic",
-        color="#ffffff",
-        palette_colors=None,
-        accessibility_description=None,
-        point_size=None,
-        weight=None,
-        scale=None,
-        text_style=None,
+        name: str,
+        rendering: Union[str, SymbolRenderingMode] = SymbolRenderingMode.AUTOMATIC,
+        color: str = "#ffffff",
+        palette_colors: Optional[List[str]] = None,
+        accessibility_description: Optional[str] = None,
+        point_size: Optional[float] = None,
+        weight: Optional[Union[str, SymbolWeight]] = None,
+        scale: Optional[Union[str, SymbolScale]] = None,
+        text_style: Optional[str] = None,
     ):
         """Create an SF Symbol with customization options.
 
         :param name: The name of the SF Symbol (e.g., "turtle", "heart.fill", "gear")
-        :param rendering: Symbol rendering mode - "automatic", "monochrome", "hierarchical", "palette", or "multicolor"
+        :param rendering: Symbol rendering mode (SymbolRenderingMode enum or legacy string)
+                         Use SymbolRenderingMode.AUTOMATIC, .MONOCHROME, .HIERARCHICAL, .PALETTE, or .MULTICOLOR
         :param color: Color for the symbol as hex string (e.g., "#ffffff") or RGB tuple (r, g, b) or (r, g, b, a)
                      For hierarchical mode: single color used as base with derived opacities
                      For monochrome mode: single color for the entire symbol
@@ -73,17 +83,24 @@ class SFSymbol:
                               Format: ["#FF0000", "#00FF00", "#0000FF"] or [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
         :param accessibility_description: Optional accessibility description for the symbol
         :param point_size: Point size for the symbol (CGFloat)
-        :param weight: Font weight - "ultraLight", "thin", "light", "regular", "medium", "semibold", "bold", "heavy", "black"
-        :param scale: Symbol scale - "small", "medium", "large"
+        :param weight: Font weight (SymbolWeight enum or legacy string)
+                      Use SymbolWeight.ULTRA_LIGHT, .THIN, .LIGHT, .REGULAR, .MEDIUM, .SEMIBOLD, .BOLD, .HEAVY, .BLACK
+        :param scale: Symbol scale (SymbolScale enum or legacy string)
+                     Use SymbolScale.SMALL, .MEDIUM, .LARGE
         :param text_style: Text style - "body", "caption1", "caption2", "footnote", "headline", "subheadline", "title1", "title2", "title3"
         """
         self.name = name
-        self.rendering = rendering
+        # Convert string parameters to enums with deprecation warnings
+        self.rendering = (
+            convert_rendering_mode(rendering)
+            if rendering
+            else SymbolRenderingMode.AUTOMATIC
+        )
         self.color = color
         self.palette_colors = palette_colors
         self.point_size = point_size
-        self.weight = weight
-        self.scale = scale
+        self.weight = convert_symbol_weight(weight) if weight else None
+        self.scale = convert_symbol_scale(scale) if scale else None
         self.text_style = text_style
         self.accessibility_description = accessibility_description or name.replace(
             ".", " "
@@ -178,9 +195,17 @@ class SFSymbol:
         try:
             # Point size + weight + scale (macOS 11+)
             if self.point_size is not None and self.weight is not None:
-                ns_weight = self.WEIGHT_MAP.get(self.weight)
+                ns_weight = (
+                    self.weight.to_font_weight()
+                    if isinstance(self.weight, SymbolWeight)
+                    else self.WEIGHT_MAP.get(self.weight)
+                )
                 if ns_weight is not None:
-                    ns_scale = self.SCALE_MAP.get(self.scale, 0)  # 0 = unspecified
+                    ns_scale = (
+                        self.scale.to_appkit_constant()
+                        if isinstance(self.scale, SymbolScale) and self.scale
+                        else 0
+                    )  # 0 = unspecified
                     if hasattr(
                         NSImageSymbolConfiguration,
                         "configurationWithPointSize_weight_scale_",
@@ -228,7 +253,11 @@ class SFSymbol:
 
             # Scale only (macOS 11+)
             elif self.scale is not None:
-                ns_scale = self.SCALE_MAP.get(self.scale)
+                ns_scale = (
+                    self.scale.to_appkit_constant()
+                    if isinstance(self.scale, SymbolScale)
+                    else self.SCALE_MAP.get(self.scale)
+                )
                 if ns_scale and hasattr(
                     NSImageSymbolConfiguration, "configurationWithScale_"
                 ):
@@ -241,24 +270,28 @@ class SFSymbol:
 
     def _create_rendering_config(self):
         """Create rendering mode configuration using the correct factory methods."""
-        if self.rendering == "automatic":
+        if self.rendering == SymbolRenderingMode.AUTOMATIC:
             return None
 
         try:
             # Try convenience methods first (various macOS versions)
-            if self.rendering == "multicolor" and hasattr(
+            if self.rendering == SymbolRenderingMode.MULTICOLOR and hasattr(
                 NSImageSymbolConfiguration, "preferringMulticolor"
             ):
                 # macOS 12+
                 return NSImageSymbolConfiguration.preferringMulticolor()
-            elif self.rendering == "monochrome" and hasattr(
+            elif self.rendering == SymbolRenderingMode.MONOCHROME and hasattr(
                 NSImageSymbolConfiguration, "preferringMonochrome"
             ):
                 # macOS 16+ (Ventura)
                 return NSImageSymbolConfiguration.preferringMonochrome()
             # elif hasattr(NSImageSymbolConfiguration, 'configurationWithColorRenderingMode_'):
             else:
-                mode = self.RENDERING_MODE_MAP.get(self.rendering)
+                mode = (
+                    self.rendering.to_appkit_constant()
+                    if isinstance(self.rendering, SymbolRenderingMode)
+                    else self.RENDERING_MODE_MAP.get(self.rendering)
+                )
                 if mode is not None:
                     return (
                         NSImageSymbolConfiguration.configurationWithColorRenderingMode_(
@@ -293,7 +326,7 @@ class SFSymbol:
                 ns_color = self._parse_color(self.color)
                 if ns_color:
                     # Hierarchical: base color with derived opacities (macOS 12+)
-                    if self.rendering == "hierarchical" and hasattr(
+                    if self.rendering == SymbolRenderingMode.HIERARCHICAL and hasattr(
                         NSImageSymbolConfiguration,
                         "configurationWithHierarchicalColor_",
                     ):
