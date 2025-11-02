@@ -11,10 +11,6 @@ Comprehensive demo showcasing all StackIt features:
 """
 
 import os, sys
-
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
 import stackit
 
 

@@ -11,9 +11,9 @@ using both URLs and HTML strings.
 import sys
 import os
 
-# Add parent directory to path for development
+# Add src directory to path for development
 sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 )
 import stackit
 

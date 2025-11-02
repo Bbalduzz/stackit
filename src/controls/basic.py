@@ -42,20 +42,17 @@ def label(
     label.setSelectable_(False)
     label.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-    # Set font
     if bold:
         font = NSFont.boldSystemFontOfSize_(font_size)
     else:
         font = NSFont.systemFontOfSize_(font_size)
     label.setFont_(font)
 
-    # Set text color if provided
     if color:
         ns_color = parse_color(color)
         if ns_color:
             label.setTextColor_(ns_color)
 
-    # Set alignment
     text_alignment_map = {
         "left": AppKit.NSTextAlignmentLeft,
         "center": AppKit.NSTextAlignmentCenter,
@@ -64,7 +61,6 @@ def label(
     if alignment in text_alignment_map:
         label.setAlignment_(text_alignment_map[alignment])
 
-    # Set size constraints if provided
     if width:
         label.widthAnchor().constraintEqualToConstant_(width).setActive_(True)
     if height:
@@ -83,18 +79,18 @@ def link(text: str, url: str) -> NSTextField:
     Returns:
         NSTextField configured as a clickable link
     """
-    # Create attributed string with link
-    attributed_string = Foundation.NSMutableAttributedString.alloc().initWithString_(text)
+    attributed_string = Foundation.NSMutableAttributedString.alloc().initWithString_(
+        text
+    )
     attributed_string.addAttribute_value_range_(
         Foundation.NSLinkAttributeName, url, Foundation.NSMakeRange(0, len(text))
     )
     attributed_string.addAttribute_value_range_(
         Foundation.NSForegroundColorAttributeName,
         NSColor.linkColor(),
-        Foundation.NSMakeRange(0, len(text))
+        Foundation.NSMakeRange(0, len(text)),
     )
 
-    # Create text field
     link_field = NSTextField.alloc().init()
     link_field.setAttributedStringValue_(attributed_string)
     link_field.setBezeled_(False)
@@ -121,19 +117,15 @@ def image(image_path, width=None, height=None, scaling=None, border_radius=None)
     """
     image_view = NSImageView.alloc().init()
     image_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
-
-    # Handle different image input types
     ns_image = None
 
     if isinstance(image_path, NSImage):
-        # Already an NSImage
         ns_image = image_path
-    elif hasattr(image_path, '__call__'):
+    elif hasattr(image_path, "__call__"):
         # SFSymbol object (callable)
         ns_image = image_path()
     elif isinstance(image_path, str):
-        if image_path.startswith(('http://', 'https://')):
-            # URL - download image
+        if image_path.startswith(("http://", "https://")):
             try:
                 response = httpx.get(image_path)
                 if response.status_code == 200:
@@ -144,20 +136,21 @@ def image(image_path, width=None, height=None, scaling=None, border_radius=None)
             except Exception as e:
                 print(f"Failed to load image from URL {image_path}: {e}")
         else:
-            # File path
             if os.path.exists(image_path):
                 ns_image = NSImage.alloc().initWithContentsOfFile_(image_path)
             else:
-                # Try as SF Symbol name
-                if hasattr(NSImage, 'imageWithSystemSymbolName_accessibilityDescription_'):
-                    ns_image = NSImage.imageWithSystemSymbolName_accessibilityDescription_(
-                        image_path, image_path
+                if hasattr(
+                    NSImage, "imageWithSystemSymbolName_accessibilityDescription_"
+                ):
+                    ns_image = (
+                        NSImage.imageWithSystemSymbolName_accessibilityDescription_(
+                            image_path, image_path
+                        )
                     )
 
     if ns_image:
         image_view.setImage_(ns_image)
 
-        # Set scaling mode
         if scaling:
             scaling_map = {
                 "proportional": AppKit.NSImageScaleProportionallyDown,
@@ -168,13 +161,13 @@ def image(image_path, width=None, height=None, scaling=None, border_radius=None)
             if scaling in scaling_map:
                 image_view.setImageScaling_(scaling_map[scaling])
 
-        # Set size constraints
         if width:
             image_view.widthAnchor().constraintEqualToConstant_(width).setActive_(True)
         if height:
-            image_view.heightAnchor().constraintEqualToConstant_(height).setActive_(True)
+            image_view.heightAnchor().constraintEqualToConstant_(height).setActive_(
+                True
+            )
 
-        # Apply border radius if specified
         if border_radius:
             image_view.setWantsLayer_(True)
             image_view.layer().setCornerRadius_(border_radius)
@@ -217,11 +210,10 @@ def button(
     button.setTitle_(title)
     button.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-    # Set button style
     if style == "default":
         button.setBezelStyle_(AppKit.NSBezelStyleRounded)
         button.setKeyEquivalent_("\r")  # Return key
-        if hasattr(button, 'set_persistent_key_equivalent'):
+        if hasattr(button, "set_persistent_key_equivalent"):
             button.set_persistent_key_equivalent(True)
     elif style == "borderless":
         button.setBezelStyle_(AppKit.NSBezelStyleInline)
@@ -229,15 +221,13 @@ def button(
     else:  # normal
         button.setBezelStyle_(AppKit.NSBezelStyleRounded)
 
-    # Set image if provided
     if image:
         if isinstance(image, NSImage):
             button.setImage_(image)
-        elif hasattr(image, '__call__'):  # SFSymbol
+        elif hasattr(image, "__call__"):
             button.setImage_(image())
         elif isinstance(image, str):
-            # Try to load as SF Symbol or file
-            if hasattr(NSImage, 'imageWithSystemSymbolName_accessibilityDescription_'):
+            if hasattr(NSImage, "imageWithSystemSymbolName_accessibilityDescription_"):
                 sf_image = NSImage.imageWithSystemSymbolName_accessibilityDescription_(
                     image, image
                 )
@@ -248,20 +238,17 @@ def button(
                 if ns_image:
                     button.setImage_(ns_image)
 
-    # Set size constraints
     if width:
         button.widthAnchor().constraintEqualToConstant_(width).setActive_(True)
     if height:
         button.heightAnchor().constraintEqualToConstant_(height).setActive_(True)
 
-    # Set up callback or target/action
     if callback:
-        # Modern callback approach (recommended)
         button.setTarget_(NSApp)
         button.setAction_("buttonCallback:")
         StackAppDelegate.register_callback(button, None, callback)
     elif target and action:
-        # Legacy target/action approach
+        # legacy target/action approach
         button.setTarget_(target)
         button.setAction_(action)
 
@@ -298,12 +285,13 @@ def separator(vertical=False):
         vertical: Whether to create a vertical separator (default: False for horizontal)
 
     Returns:
-        NSView configured as a separator line
+        NSBox configured as a separator line
     """
-    separator_view = NSView.alloc().init()
+    # Use NSBox which is the native AppKit way to create separators
+    # This avoids CGColor pointer warnings
+    separator_view = NSBox.alloc().init()
+    separator_view.setBoxType_(AppKit.NSBoxSeparator)
     separator_view.setTranslatesAutoresizingMaskIntoConstraints_(False)
-    separator_view.setWantsLayer_(True)
-    separator_view.layer().setBackgroundColor_(NSColor.separatorColor().CGColor())
 
     if vertical:
         # Vertical separator

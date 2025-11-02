@@ -9,7 +9,7 @@ building rich menu bar interfaces using PyObjC and AppKit.
 """
 
 # Import everything from the main module
-from src.stackit import *
+from src import *
 
 # Re-export version info
-from src.stackit import __version__, __author__, __license__, __title__
+from src import __version__, __author__, __license__, __title__

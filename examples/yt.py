@@ -4,7 +4,9 @@ import threading
 import logging
 import math
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
+)
 import stackit
 from pytubefix import YouTube
 from AppKit import NSPasteboard, NSImage, NSBezierPath, NSColor, NSGraphicsContext

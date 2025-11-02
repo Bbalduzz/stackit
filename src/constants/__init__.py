@@ -11,7 +11,7 @@ preserving backward compatibility.
 """
 
 from .constants import (
-    # Enums
+    # enums
     Alignment,
     Orientation,
     SymbolRenderingMode,
@@ -19,14 +19,14 @@ from .constants import (
     SymbolWeight,
     MapType,
     BadgeType,
-    # Configuration classes
+    # configuration classes
     SFSymbolConfig,
     MapConfig,
     ChartConfig,
     LineChartConfig,
     BarChartConfig,
     RingChartConfig,
-    # Conversion functions
+    # conversion functions
     convert_alignment,
     convert_orientation,
     convert_rendering_mode,
@@ -37,7 +37,6 @@ from .constants import (
 )
 
 __all__ = [
-    # Enums
     "Alignment",
     "Orientation",
     "SymbolRenderingMode",
@@ -45,14 +44,12 @@ __all__ = [
     "SymbolWeight",
     "MapType",
     "BadgeType",
-    # Configuration classes
     "SFSymbolConfig",
     "MapConfig",
     "ChartConfig",
     "LineChartConfig",
     "BarChartConfig",
     "RingChartConfig",
-    # Conversion functions
     "convert_alignment",
     "convert_orientation",
     "convert_rendering_mode",

@@ -1,0 +1,5 @@
+pip install pyobjc-framework-AVFoundation
+pip install pyobjc-framework-AVKit
+pip install pyobjc-framework-MapKit
+pip install pyobjc-framework-SpriteKit
+pip install pyobjc-framework-WebKit

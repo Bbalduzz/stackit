@@ -59,13 +59,14 @@ Repository = "https://github.com/Bbalduzz/stackit"
 "Bug Tracker" = "https://github.com/Bbalduzz/stackit/issues"
 
 [tool.setuptools]
-packages = ["stackit"]
+packages = ["core", "controls", "utils", "symbols", "constants"]
+py-modules = ["stackit"]
 
 [tool.setuptools.dynamic]
 version = {attr = "stackit.__version__"}
 
 [tool.setuptools.package-dir]
-stackit = "."
+"" = "src"
 
 [tool.setuptools.package-data]
 stackit = ["py.typed"]

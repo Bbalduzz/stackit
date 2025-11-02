@@ -40,6 +40,7 @@ from AppKit import (
     NSURL,
     NSDatePicker,
     NSTimeZone,
+    NSBox,
 )
 import httpx
 import objc
@@ -47,45 +48,47 @@ import datetime
 import os
 
 from symbols import SFSymbol
-from utils import parse_color
-from constants import (
-    Orientation,
-    MapType,
-    convert_orientation,
-    convert_map_type
-)
+from utils import parse_color, check_if_installed
+from constants import Orientation, MapType, convert_orientation, convert_map_type
 from core.delegate import StackAppDelegate
 from typing import Union
 
-# Import optional frameworks
 # Import SpriteKit for line chart
 try:
     import SpriteKit
+
     SPRITEKIT_AVAILABLE = True
 except ImportError:
     SPRITEKIT_AVAILABLE = False
+    check_if_installed("SpriteKit")
 
 # Import AVKit for video playback
 try:
     import AVKit
     import AVFoundation
+
     AVKIT_AVAILABLE = True
 except ImportError:
     AVKIT_AVAILABLE = False
+    check_if_installed("AVKit")
 
 # Import MapKit for maps
 try:
     import MapKit
+
     MAPKIT_AVAILABLE = True
 except ImportError:
     MAPKIT_AVAILABLE = False
+    check_if_installed("MapKit")
 
 # Import WebKit for web views
 try:
     import WebKit
+
     WEBKIT_AVAILABLE = True
 except ImportError:
     WEBKIT_AVAILABLE = False
+    check_if_installed("WebKit")
 
 # Global registry to keep delegate references alive
 _delegate_registry = {}
@@ -109,14 +112,16 @@ class PersistentDefaultButton(NSButton):
         """Mark this button to maintain its key equivalent state."""
         self._should_maintain_key_equivalent = value
         if value:
-            # Ensure the button is set as the default button
             self.setKeyEquivalent_("\r")
 
     def resignFirstResponder(self):
         """Override to maintain key equivalent status even when resigning first responder."""
         result = objc.super(PersistentDefaultButton, self).resignFirstResponder()
-        # Restore key equivalent if we're supposed to maintain it
-        if hasattr(self, '_should_maintain_key_equivalent') and self._should_maintain_key_equivalent:
+        # restore key equivalent if we're supposed to maintain it
+        if (
+            hasattr(self, "_should_maintain_key_equivalent")
+            and self._should_maintain_key_equivalent
+        ):
             self.setKeyEquivalent_("\r")
         return result
 

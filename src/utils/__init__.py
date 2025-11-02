@@ -23,6 +23,7 @@ from .utils import (
     save_preferences,
     load_preferences,
     parse_color,
+    check_if_installed,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "save_preferences",
     "load_preferences",
     "parse_color",
+    "check_if_installed",
 ]

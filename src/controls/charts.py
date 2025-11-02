@@ -165,46 +165,52 @@ class _LineChartView(NSView):
         if SPRITEKIT_AVAILABLE:
             try:
                 # Use SpriteKit keyframe sequence for spline interpolation
+                # SKKeyframeSequence expects normalized time values (0.0 to 1.0)
+                num_points = len(self._points)
+                normalized_times = [float(i) / (num_points - 1) for i in range(num_points)]
+
                 sequence = (
                     SpriteKit.SKKeyframeSequence.alloc().initWithKeyframeValues_times_(
-                        y_points, [NSNumber.numberWithDouble_(x) for x in x_points]
+                        y_points, [NSNumber.numberWithDouble_(t) for t in normalized_times]
                     )
                 )
                 sequence.setInterpolationMode_(SpriteKit.SKInterpolationModeSpline)
 
                 # Sample the spline at regular intervals
                 path = NSBezierPath.bezierPath()
-                sample_step = 0.5
                 min_x = x_points[0]  # Start x (with margin)
                 max_x = x_points[-1]  # End x (with margin)
+                total_width = max_x - min_x
+
+                # Sample at 2-pixel intervals for smooth curve
+                num_samples = int(total_width / 2.0) + 1
 
                 # Start at first point
-                first_y = sequence.sampleAtTime_(min_x)
+                first_y = sequence.sampleAtTime_(0.0)
                 if isinstance(first_y, (int, float)):
                     path.moveToPoint_(NSMakePoint(min_x, first_y))
                 else:
                     path.moveToPoint_(NSMakePoint(min_x, y_points[0]))
 
-                # Sample along the curve
-                x = min_x + sample_step
-                while x <= max_x:
-                    sampled_y = sequence.sampleAtTime_(x)
+                # Sample along the curve using normalized time
+                for i in range(1, num_samples):
+                    # Normalized time from 0.0 to 1.0
+                    t = float(i) / (num_samples - 1)
+                    # Convert to actual x coordinate
+                    x = min_x + t * total_width
+
+                    sampled_y = sequence.sampleAtTime_(t)
                     if isinstance(sampled_y, (int, float)):
-                        y = sampled_y
+                        path.lineToPoint_(NSMakePoint(x, sampled_y))
                     else:
                         # Fallback to linear interpolation
-                        # Find which segment we're in
-                        idx = int((x - min_x) / step_x)
-                        if idx >= len(y_points) - 1:
-                            y = y_points[-1]
-                        else:
-                            t = (x - x_points[idx]) / step_x
-                            y = y_points[idx] * (1 - t) + y_points[idx + 1] * t
-                    path.lineToPoint_(NSMakePoint(x, y))
-                    x += sample_step
+                        idx = min(int(t * (num_points - 1)), num_points - 2)
+                        local_t = (t * (num_points - 1)) - idx
+                        y = y_points[idx] * (1 - local_t) + y_points[idx + 1] * local_t
+                        path.lineToPoint_(NSMakePoint(x, y))
 
-                # End at last point
-                last_y = sequence.sampleAtTime_(max_x)
+                # Ensure we end at the last point
+                last_y = sequence.sampleAtTime_(1.0)
                 if isinstance(last_y, (int, float)):
                     path.lineToPoint_(NSMakePoint(max_x, last_y))
                 else:

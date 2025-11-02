@@ -82,6 +82,17 @@ def notification(title, subtitle=None, message=None, sound=True):
             notification.setSoundName_("NSUserNotificationDefaultSoundName")
 
         center = NSUserNotificationCenter.defaultUserNotificationCenter()
+
+        # Check if notification center is available (it may be None on newer macOS versions)
+        if center is None:
+            NSLog(f"NSUserNotificationCenter not available. Notification: {title}")
+            # Fall back to console log
+            if subtitle:
+                NSLog(f"  Subtitle: {subtitle}")
+            if message:
+                NSLog(f"  Message: {message}")
+            return
+
         center.deliverNotification_(notification)
 
     except Exception as e:
@@ -239,8 +250,39 @@ class _TimerTarget(AppKit.NSObject):
                 NSLog(f"Timer callback error: {e}")
 
 
+class _TimerScheduler(AppKit.NSObject):
+    """Helper class to schedule timers on the main thread."""
+
+    def initWithInterval_callback_repeats_(self, interval, callback, repeats):
+        self = objc.super(_TimerScheduler, self).init()
+        if self:
+            self.interval = interval
+            self.callback = callback
+            self.repeats = repeats
+            self.timer_result = None
+        return self
+
+    def scheduleTimer(self):
+        """Called on main thread to schedule the timer."""
+        from Foundation import NSRunLoop
+
+        target = _TimerTarget.alloc().initWithCallback_(self.callback)
+        self.timer_result = (
+            NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
+                self.interval, target, "timerFired:", None, self.repeats
+            )
+        )
+        # Schedule on main run loop in common modes
+        NSRunLoop.mainRunLoop().addTimer_forMode_(
+            self.timer_result, NSRunLoopCommonModes
+        )
+
+
 def timer(interval, callback, repeats=True):
     """Create a timer that calls a function at regular intervals.
+
+    This function is thread-safe and will automatically schedule the timer on
+    the main thread's run loop, regardless of which thread it's called from.
 
     Args:
         interval: time interval in seconds
@@ -250,17 +292,36 @@ def timer(interval, callback, repeats=True):
     Returns:
         NSTimer object
     """
-    target = _TimerTarget.alloc().initWithCallback_(callback)
-    timer = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
-        interval, target, "timerFired:", None, repeats
-    )
-    # adding timer to run loop in common modes so it works even when menus are open
-    NSRunLoop.currentRunLoop().addTimer_forMode_(timer, NSRunLoopCommonModes)
-    return timer
+    from Foundation import NSThread, NSRunLoop
+
+    def schedule_timer():
+        target = _TimerTarget.alloc().initWithCallback_(callback)
+        timer_obj = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
+            interval, target, "timerFired:", None, repeats
+        )
+        # Schedule on main run loop in common modes so it works even when menus are open
+        NSRunLoop.mainRunLoop().addTimer_forMode_(timer_obj, NSRunLoopCommonModes)
+        return timer_obj
+
+    # If we're already on the main thread, schedule directly
+    if NSThread.isMainThread():
+        return schedule_timer()
+    else:
+        # If on background thread, schedule on main thread using helper
+        scheduler = _TimerScheduler.alloc().initWithInterval_callback_repeats_(
+            interval, callback, repeats
+        )
+        scheduler.performSelectorOnMainThread_withObject_waitUntilDone_(
+            "scheduleTimer", None, True  # Wait until done to get the timer reference
+        )
+        return scheduler.timer_result
 
 
 def after(seconds, callback):
     """Run a callback once after a delay.
+
+    This function is thread-safe and can be called from any thread. The timer
+    will be automatically scheduled on the main thread's run loop.
 
     Args:
         seconds: delay in seconds before running callback
@@ -273,13 +334,21 @@ def after(seconds, callback):
         def delayed_action(timer):
             print("Executed after 2 seconds")
 
-        stackbar.after(2.0, delayed_action)
+        stackit.after(2.0, delayed_action)
+
+        # Can also be called from background threads
+        def background_task():
+            # Do some work...
+            stackit.after(0.0, lambda timer: update_ui())  # Safe!
     """
     return timer(seconds, callback, repeats=False)
 
 
 def every(seconds, callback):
     """Run a callback repeatedly at a fixed interval.
+
+    This function is thread-safe and can be called from any thread. The timer
+    will be automatically scheduled on the main thread's run loop.
 
     Args:
         seconds: interval in seconds between callback executions
@@ -292,7 +361,7 @@ def every(seconds, callback):
         def periodic_check(timer):
             print("Called every 5 seconds")
 
-        timer = stackbar.every(5.0, periodic_check)
+        timer = stackit.every(5.0, periodic_check)
         # Later: timer.invalidate() to stop
     """
     return timer(seconds, callback, repeats=True)
@@ -367,3 +436,19 @@ def parse_color(color, default=None):
             return default
 
     return default
+
+
+def check_if_installed(framework_name):
+    """Check if a PyObjC framework is installed and provide installation guidance."""
+    try:
+        import importlib.util
+
+        spec = importlib.util.find_spec(framework_name)
+        if spec is None:
+            print(f"[!] {framework_name} is not installed.")
+            print(f"   To use {framework_name} features, install it with:")
+            print(f"   pip install pyobjc-framework-{framework_name}")
+            return False
+        return True
+    except (ImportError, ValueError):
+        return False
